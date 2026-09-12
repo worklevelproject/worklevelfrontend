@@ -20,3 +20,6 @@ export const removeEmployee = (storeId, ticketId) =>
 export const getInviteCode = (storeId) => get(`/stores/${storeId}/owner/invite-code`);
 export const updateEmployeeInfo = (storeId, ticketId, body) =>
 	patch(`/stores/${storeId}/owner/employees/${ticketId}`, body);
+/** 매장 이름/주소/전화번호. {storeId, name, address, tel} */
+export const getStoreConfig = (storeId) => get(`/stores/${storeId}/owner/config`);
+export const updateStoreConfig = (storeId, body) => patch(`/stores/${storeId}/owner/config`, body);

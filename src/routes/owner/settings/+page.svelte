@@ -5,6 +5,7 @@
 	import { mock, resetMock } from '$lib/stores/mock.js';
 	import { getTemplates as getTimeTemplates, upsertTemplates } from '$lib/api/timeTemplate.js';
 	import { getConfig, upsert as upsertTimeConfig } from '$lib/api/timeConfig.js';
+	import { getStoreConfig, updateStoreConfig } from '$lib/api/store.js';
 	import { logout } from '$lib/api/auth.js';
 	import { withdraw } from '$lib/api/member.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
@@ -24,8 +25,10 @@
 
 	let slots = $state(/** @type {any[]} */ ([]));
 	let timeConfig = $state(/** @type {any} */ (null));
+	let storeConfig = $state(/** @type {any} */ (null));
 	let savingSlots = $state(false);
 	let savingConfig = $state(false);
+	let savingStore = $state(false);
 
 	onMount(async () => {
 		try {
@@ -38,7 +41,30 @@
 		} catch {
 			timeConfig = { minStaff: 1, responseDeadlineMinutes: 720, submitDeadlineDayOfWeek: 'THURSDAY' };
 		}
+		try {
+			storeConfig = await getStoreConfig($session.storeId);
+		} catch {
+			storeConfig = { name: $session.storeName, address: '', tel: '' };
+		}
 	});
+
+	async function saveStoreConfig() {
+		if (!storeConfig.name?.trim()) return showToast('매장 이름을 적어 주세요');
+		savingStore = true;
+		try {
+			storeConfig = await updateStoreConfig($session.storeId, {
+				name: storeConfig.name.trim(),
+				address: storeConfig.address?.trim() || null,
+				tel: storeConfig.tel?.trim() || null
+			});
+			await session.selectStore($session.storeId);
+			showToast('저장했어요');
+		} catch (e) {
+			showToast(e?.message || '저장에 실패했어요');
+		} finally {
+			savingStore = false;
+		}
+	}
 
 	function slotFor(type) {
 		return slots.find((s) => s.timeType === type) || { timeType: type, startTime: '09:00', endTime: '18:00' };
@@ -116,13 +142,12 @@
 		{/each}
 	</div>
 	<div class="card w" style="padding:24px 28px">
-		{#if sec === 'store'}
+		{#if sec === 'store' && storeConfig}
 			<h3 style="margin-bottom:16px">매장 정보</h3>
-			<div class="kv" style="margin:0">
-				<div><b>{$session.storeName}</b><span>매장 이름</span></div>
-				<div><b>#{$session.storeId}</b><span>매장 번호</span></div>
-			</div>
-			<p class="tiny muted" style="margin-top:12px">매장 이름·주소·전화 수정 API는 아직 백엔드에 없어요.<span class="mock-badge">인프라 미비</span></p>
+			<div class="f" style="max-width:420px"><label>매장 이름</label><input bind:value={storeConfig.name} /></div>
+			<div class="f" style="max-width:420px"><label>주소</label><input bind:value={storeConfig.address} /></div>
+			<div class="f" style="max-width:420px"><label>전화번호</label><input bind:value={storeConfig.tel} /></div>
+			<button class="btn p" disabled={savingStore} onclick={saveStoreConfig}>저장</button>
 		{:else if sec === 'slots'}
 			<h3 style="margin-bottom:16px">근무 시간대</h3>
 			<p class="muted" style="margin-bottom:16px">시간대는 직원의 되는 시간 입력, 근무 넣기 화면에 쓰여요.</p>

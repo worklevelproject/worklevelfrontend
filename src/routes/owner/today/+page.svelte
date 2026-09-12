@@ -5,7 +5,9 @@
 	import { getAttendance } from '$lib/api/dashboard.js';
 	import { getAttendanceCorrections, confirmAttendanceCorrection, rejectAttendanceCorrection, getStoreWorkRequests } from '$lib/api/work.js';
 	import { getEmployeeStats } from '$lib/api/store.js';
-	import { todayISO, hh, toHM } from '$lib/utils/date.js';
+	import { getNotices } from '$lib/api/notice.js';
+	import { getHandOvers } from '$lib/api/handover.js';
+	import { todayISO, hh, toHM, rel } from '$lib/utils/date.js';
 	import { won, man } from '$lib/utils/format.js';
 	import { payFor } from '$lib/utils/payroll.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -20,6 +22,8 @@
 	let corrections = $state(/** @type {any[]} */ ([]));
 	let rejected = $state(/** @type {any[]} */ ([]));
 	let stats = $state(/** @type {any[]} */ ([]));
+	let notices = $state(/** @type {any[]} */ ([]));
+	let handovers = $state(/** @type {any[]} */ ([]));
 
 	const T = todayISO();
 	const nowH = () => {
@@ -32,16 +36,20 @@
 		error = '';
 		try {
 			const storeId = $session.storeId;
-			const [att, corr, rej, empStats] = await Promise.all([
+			const [att, corr, rej, empStats, n, h] = await Promise.all([
 				getAttendance(storeId, T),
 				getAttendanceCorrections(storeId),
 				getStoreWorkRequests(storeId, 'REJECT'),
-				getEmployeeStats(storeId, true)
+				getEmployeeStats(storeId, true),
+				getNotices(storeId),
+				getHandOvers(storeId)
 			]);
 			items = att.filter((a) => a.workDate === T);
 			corrections = corr.filter((c) => !c.resolved);
 			rejected = rej.filter((r) => r.workStartTime?.slice(0, 10) >= T);
 			stats = empStats;
+			notices = n;
+			handovers = h;
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
@@ -96,7 +104,7 @@
 			<h1>{nowH() < 12 ? '좋은 아침입니다' : nowH() < 18 ? '좋은 오후입니다' : '수고 많으셨어요'}, 사장님</h1>
 		</div>
 		<div class="acts">
-			<button class="btn s" onclick={() => openDrawer(NoticeDrawer)}>공지 쓰기</button>
+			<button class="btn s" onclick={() => openDrawer(NoticeDrawer, { onDone: load })}>공지 쓰기</button>
 			<button class="btn p" onclick={() => openDrawer(AddShiftDrawer, { onDone: load })}>근무 넣기</button>
 		</div>
 	</div>
@@ -171,12 +179,12 @@
 				</table>
 			</div>
 
-			{#if $mock.handovers[0]}
+			{#if handovers[0]}
 				<div class="sec">
-					<div class="sec-h"><h3>어제 마감 노트<span class="mock-badge">목업</span></h3><a class="more" href="/owner/notices">인수인계 →</a></div>
+					<div class="sec-h"><h3>최근 마감 노트</h3><a class="more" href="/owner/notices">인수인계 →</a></div>
 					<div class="card">
-						<div class="tiny muted">{$mock.handovers[0].by} · {$mock.handovers[0].at} · 사진 {$mock.handovers[0].photos}장</div>
-						<p style="margin-top:6px;color:var(--carbon)">{$mock.handovers[0].text}</p>
+						<div class="tiny muted">{handovers[0].writer.alias} · {rel(handovers[0].createdAt.slice(0, 10))} {toHM(handovers[0].createdAt)}</div>
+						<p style="margin-top:6px;color:var(--carbon)">{handovers[0].content}</p>
 					</div>
 				</div>
 			{/if}
@@ -184,10 +192,12 @@
 
 		<div>
 			<div class="sec">
-				<div class="sec-h"><h3>공지<span class="mock-badge">목업</span></h3><a class="more" href="/owner/notices">공지 →</a></div>
+				<div class="sec-h"><h3>공지</h3><a class="more" href="/owner/notices">공지 →</a></div>
 				<div class="rows">
-					{#each $mock.notices.slice(0, 3) as n (n.id)}
-						<div class="row"><div class="main"><div class="t">{n.title}</div><div class="s">{n.at}</div></div></div>
+					{#each notices.slice(0, 3) as n (n.id)}
+						<div class="row"><div class="main"><div class="t">{n.title}</div><div class="s">{rel(n.createdAt.slice(0, 10))}</div></div></div>
+					{:else}
+						<div class="empty">공지가 없어요</div>
 					{/each}
 				</div>
 			</div>

@@ -3,7 +3,15 @@ export const WORK_TYPE = { MONTHLY: '매월', DAILY: '매일', WEEKLY: '매주',
 export const TIME_TYPE = { OPEN: '오픈', CLOSE: '마감', NORMAL: '보통' };
 export const CONTENT_TYPE = { CHECK: '했어요 버튼', MEMO: '글로 답하기', PHOTO: '사진으로 답하기' };
 export const WORK_REQUEST_STATUS = { PENDING: '답 기다리는 중', ACCEPT: '확정', REJECT: '못 나옴' };
-export const WORK_RESPONSE_STATUS = { PENDING: '검토 중', SUCCESS: '승인', REJECT: '반려' };
+export const TASK_RESPONSE_STATUS = { PENDING: '진행 중', COMPLETE: '완료' };
+export const TASK_RECURRENCE_TYPE = {
+	WEEKLY: '매주',
+	MONTHLY: '매월',
+	DAILY: '매일',
+	ONE_TIME: '일시적',
+	DEADLINE: '마감',
+	OPEN: '상시'
+};
 export const ATTENDANCE_STATUS = {
 	SCHEDULED: '출근 전',
 	LATE: '지각',
@@ -18,6 +26,9 @@ export const MANUAL_ITEM_CATEGORY = { NOTICE: '공지', EDUCATION: '교육자료
 /** WorkRequestStatus -> pill 클래스(ok/wait/bad) */
 export function statusPillClass(status) {
 	return status === 'ACCEPT' ? 'ok' : status === 'PENDING' ? 'wait' : 'bad';
+}
+export function taskResponsePillClass(status) {
+	return status === 'COMPLETE' ? 'ok' : status === 'PENDING' ? 'wait' : 'off';
 }
 export function attendancePillClass(status) {
 	if (status === 'WORKING') return 'ok';

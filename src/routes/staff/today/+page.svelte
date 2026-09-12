@@ -1,14 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
-	import { getMyWorkRequests, acceptWorkRequest, checkIn as apiCheckIn, checkOut as apiCheckOut } from '$lib/api/work.js';
+	import { getMyWorkRequests, acceptWorkRequest, checkIn as apiCheckIn, checkOut as apiCheckOut, getWork } from '$lib/api/work.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { todayISO, toHM, fmt, hh } from '$lib/utils/date.js';
 	import { won } from '$lib/utils/format.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
-	import TaskAnswerDrawer from '$lib/components/drawers/TaskAnswerDrawer.svelte';
+	import HandOverDrawer from '$lib/components/drawers/HandOverDrawer.svelte';
 	import DeclineDrawer from '$lib/components/drawers/DeclineDrawer.svelte';
 
 	const T = todayISO();
@@ -17,6 +17,8 @@
 	let loading = $state(true);
 	/** @type {Record<number, any>} 액션 응답으로만 알 수 있는 체크인 상태 */
 	let att = $state(/** @type {Record<number, {checkIn:boolean, checkOut:boolean, checkInTime?:string, checkOutTime?:string}>} */ ({}));
+	/** @type {Record<number, 'OPEN'|'CLOSE'|'NORMAL'>} 오늘 근무의 timeType (마감 인수인계 버튼 노출용) */
+	let timeTypes = $state(/** @type {Record<number, string>} */ ({}));
 
 	async function load() {
 		loading = true;
@@ -27,6 +29,9 @@
 			]);
 			mine = accepted;
 			pending = req;
+			const today = accepted.filter((w) => w.workStartTime?.slice(0, 10) === T);
+			const details = await Promise.all(today.map((w) => getWork($session.storeId, w.workId)));
+			details.forEach((d, i) => (timeTypes[today[i].workId] = d.timeType));
 		} finally {
 			loading = false;
 		}
@@ -65,8 +70,8 @@
 		}
 	}
 
-	function answer(workId) {
-		openDrawer(TaskAnswerDrawer, { workId, onDone: load });
+	function writeHandOver(workId) {
+		openDrawer(HandOverDrawer, { workId, onDone: load });
 	}
 	function decline(w) {
 		openDrawer(DeclineDrawer, { workRequestId: w.workRequestId, onDone: load });
@@ -104,7 +109,9 @@
 						<button class="btn p" style="margin-top:20px" onclick={() => doCheckOut(w)}>퇴근할게요</button>
 					{/if}
 				</div>
-				<button class="btn s w" style="margin-bottom:16px" onclick={() => answer(w.workId)}>이 근무 보고 쓰기</button>
+				{#if timeTypes[w.workId] === 'CLOSE'}
+					<button class="btn s w" style="margin-bottom:16px" onclick={() => writeHandOver(w.workId)}>마감 인수인계 쓰기</button>
+				{/if}
 			{:else}
 				<div class="card" style="margin-bottom:16px"><div class="empty" style="padding:16px 0">오늘은 근무 없음</div></div>
 			{/each}
