@@ -5,8 +5,9 @@
 	import { session } from '$lib/stores/session.js';
 	import { getEmployeeDetail, getEmployeeStats, updateEmployeeInfo, removeEmployee } from '$lib/api/store.js';
 	import { getList as getDocList } from '$lib/api/contractDocument.js';
+	import { getStoreSalary } from '$lib/api/cost.js';
 	import { mock } from '$lib/stores/mock.js';
-	import { payFor } from '$lib/utils/payroll.js';
+	import { deductionFor } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
 	import { DOCUMENT_TYPE } from '$lib/utils/labels.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
@@ -16,6 +17,7 @@
 
 	let detail = $state(/** @type {any} */ (null));
 	let stat = $state(/** @type {any} */ (null));
+	let salaryRow = $state(/** @type {any} */ (null));
 	let docs = $state(/** @type {any[]} */ ([]));
 	let editing = $state(false);
 	let form = $state({ jobRole: 'STAFF', hourlyWage: 0, workStartDate: '', availableStartTime: '09:00', availableEndTime: '18:00' });
@@ -23,13 +25,15 @@
 	let err = $state('');
 
 	async function load() {
-		const [d, stats, dl] = await Promise.all([
+		const [d, stats, dl, salary] = await Promise.all([
 			getEmployeeDetail($session.storeId, ticketId),
 			getEmployeeStats($session.storeId, true),
-			getDocList(ticketId)
+			getDocList(ticketId),
+			getStoreSalary($session.storeId)
 		]);
 		detail = d;
 		stat = stats.find((s) => s.ticketId === ticketId) || null;
+		salaryRow = salary.find((s) => s.ticketId === ticketId) || null;
 		docs = dl;
 		form = {
 			jobRole: d.jobRole,
@@ -41,7 +45,9 @@
 	}
 	onMount(load);
 
-	const pay = $derived(stat ? payFor(stat.weeklyWorkMinutes / 60, 0, stat.hourlyWage || 0, $mock.paySettings) : null);
+	const pay = $derived(
+		salaryRow ? deductionFor(salaryRow.totalPay + salaryRow.weeklyAllowanceAmount, $mock.paySettings.deduct) : null
+	);
 
 	async function save() {
 		saving = true;
@@ -122,7 +128,7 @@
 			{/if}
 
 			<div class="sec">
-				<div class="sec-h"><h3>이번 주 근무 · 급여 예상</h3></div>
+				<div class="sec-h"><h3>이번 주 근무 · 이번달 급여</h3></div>
 				{#if stat}
 					<div class="kv x3">
 						<div><b class="num">{(stat.weeklyWorkMinutes / 60).toFixed(1)}h</b><span>이번 주 확정</span></div>
@@ -131,7 +137,9 @@
 					</div>
 				{/if}
 				{#if pay}
-					<p class="tiny muted">이번 주 기준 월 환산 실지급 예상 {won(pay.net)}<span class="mock-badge">목업 계산</span></p>
+					<p class="tiny muted">이번달 실지급 예상 {won(pay.net)} (수당·주휴수당은 실제 계산값, 공제만 추정)</p>
+				{:else}
+					<p class="tiny muted">이번달 근무 기록이 아직 없어요</p>
 				{/if}
 			</div>
 

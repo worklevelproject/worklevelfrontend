@@ -7,9 +7,10 @@
 	import { getEmployeeStats } from '$lib/api/store.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { getHandOvers } from '$lib/api/handover.js';
+	import { getStoreSalary } from '$lib/api/cost.js';
 	import { todayISO, hh, toHM, rel } from '$lib/utils/date.js';
 	import { won, man } from '$lib/utils/format.js';
-	import { payFor } from '$lib/utils/payroll.js';
+	import { deductionFor } from '$lib/utils/payroll.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
@@ -24,6 +25,7 @@
 	let stats = $state(/** @type {any[]} */ ([]));
 	let notices = $state(/** @type {any[]} */ ([]));
 	let handovers = $state(/** @type {any[]} */ ([]));
+	let salary = $state(/** @type {any[]} */ ([]));
 
 	const T = todayISO();
 	const nowH = () => {
@@ -36,13 +38,14 @@
 		error = '';
 		try {
 			const storeId = $session.storeId;
-			const [att, corr, rej, empStats, n, h] = await Promise.all([
+			const [att, corr, rej, empStats, n, h, sal] = await Promise.all([
 				getAttendance(storeId, T),
 				getAttendanceCorrections(storeId),
 				getStoreWorkRequests(storeId, 'REJECT'),
 				getEmployeeStats(storeId, true),
 				getNotices(storeId),
-				getHandOvers(storeId)
+				getHandOvers(storeId),
+				getStoreSalary(storeId)
 			]);
 			items = att.filter((a) => a.workDate === T);
 			corrections = corr.filter((c) => !c.resolved);
@@ -50,6 +53,7 @@
 			stats = empStats;
 			notices = n;
 			handovers = h;
+			salary = sal;
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
@@ -68,7 +72,7 @@
 	const yesterday = $derived($mock.sales[Object.keys($mock.sales).sort().filter((k) => k < T).at(-1)] || { total: 0 });
 
 	const monthlyPayEstimate = $derived(
-		stats.reduce((sum, s) => sum + payFor(s.weeklyWorkMinutes / 60, 0, s.hourlyWage || 0, $mock.paySettings).net, 0)
+		salary.reduce((sum, s) => sum + deductionFor(s.totalPay + s.weeklyAllowanceAmount, $mock.paySettings.deduct).net, 0)
 	);
 
 	async function onConfirmCorrection(id) {
@@ -206,7 +210,7 @@
 				<div class="card">
 					<div class="tile" style="padding:0;background:none">
 						<b class="num" style="font-size:24px">{won(monthlyPayEstimate)}</b>
-						<span>직원 {stats.length}명 실지급 예상 · 계산 방식은 급여 페이지 참고<span class="mock-badge">목업 계산</span></span>
+						<span>직원 {salary.length}명 실지급 예상 · 공제 방식은 급여 페이지 참고</span>
 					</div>
 				</div>
 			</div>

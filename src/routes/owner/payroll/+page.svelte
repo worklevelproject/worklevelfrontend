@@ -1,24 +1,31 @@
 <script>
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
-	import { getEmployeeStats } from '$lib/api/store.js';
+	import { getStoreSalary } from '$lib/api/cost.js';
 	import { mock } from '$lib/stores/mock.js';
-	import { payFor } from '$lib/utils/payroll.js';
+	import { deductionFor } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
 
-	let stats = $state(/** @type {any[]} */ ([]));
+	let list = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
 
 	onMount(async () => {
 		try {
-			stats = await getEmployeeStats($session.storeId, true);
+			list = await getStoreSalary($session.storeId);
 		} finally {
 			loading = false;
 		}
 	});
 
-	const rows = $derived(stats.map((s) => ({ s, r: payFor(s.weeklyWorkMinutes / 60, 0, s.hourlyWage || 0, $mock.paySettings) })));
-	const total = $derived(rows.reduce((a, { r }) => ({ gross: a.gross + r.gross, ded: a.ded + r.ded, net: a.net + r.net }), { gross: 0, ded: 0, net: 0 }));
+	const rows = $derived(
+		list.map((s) => {
+			const gross = s.totalPay + s.weeklyAllowanceAmount;
+			return { s, gross, ...deductionFor(gross, $mock.paySettings.deduct) };
+		})
+	);
+	const total = $derived(
+		rows.reduce((a, { gross, ded, net }) => ({ gross: a.gross + gross, ded: a.ded + ded, net: a.net + net }), { gross: 0, ded: 0, net: 0 })
+	);
 </script>
 
 <svelte:head><title>급여 · WORKLEVEL</title></svelte:head>
@@ -26,8 +33,8 @@
 <div class="hdr">
 	<div>
 		<div class="eyebrow">
-			실제 확정 근무시간(이번 주)에 근로기준법 참고 계산을 얹은 값이에요. 계산 규칙 자체는 백엔드에 없어 이 브라우저 설정을 따라요.
-			<span class="mock-badge">목업 계산</span>
+			이번달 실제 출퇴근 기록 기준 수당(기본·야간·휴일)·주휴수당 합계예요. 공제만 백엔드에 없어 이 브라우저 설정을 따라요.
+			<span class="mock-badge">공제만 추정</span>
 		</div>
 		<h1>급여</h1>
 	</div>
@@ -43,21 +50,23 @@
 		<div class="tile"><b class="num" style="font-size:22px">{$mock.paySettings.deduct === '3.3' ? '3.3%' : $mock.paySettings.deduct}</b><span>공제 방식</span></div>
 	</div>
 	<div class="paycard">
-		{#each rows as { s, r } (s.ticketId)}
+		{#each rows as { s, ded, net } (s.ticketId)}
 			<div class="pay">
 				<div class="h">
 					<div class="avatar" style="width:30px;height:30px;font-size:11px">{s.alias?.slice(1)}</div>
-					<div><b>{s.alias}</b><br /><span>{s.jobRole} · 시급 {s.hourlyWage?.toLocaleString()}원 · 이번 주 {r.wh}h</span></div>
+					<div><b>{s.alias}</b><br /><span>시급 {s.hourlyWage?.toLocaleString()}원 · 이번달 {(s.totalWorkMinutes / 60).toFixed(1)}h</span></div>
 				</div>
-				<div class="amt">{won(r.net)}</div>
-				<div class="ln"><span>기본급 (주 {r.wh}h × 4.3주)</span><span>{won(r.base)}</span></div>
-				<div class="ln"><span>주휴수당{r.holiday ? '' : ' (주 15h 미만)'}</span><span>{won(r.holiday)}</span></div>
-				<div class="ln"><span>공제</span><span>−{won(r.ded)}</span></div>
-				<div class="ln tot"><span>실지급</span><span>{won(r.net)}</span></div>
+				<div class="amt">{won(net)}</div>
+				<div class="ln"><span>수당 (기본·야간·휴일)</span><span>{won(s.totalPay)}</span></div>
+				<div class="ln"><span>주휴수당</span><span>{won(s.weeklyAllowanceAmount)}</span></div>
+				<div class="ln"><span>공제</span><span>−{won(ded)}</span></div>
+				<div class="ln tot"><span>실지급</span><span>{won(net)}</span></div>
 			</div>
+		{:else}
+			<div class="empty">이번달 급여 대상 직원이 없어요</div>
 		{/each}
 	</div>
 	<p class="tiny muted" style="margin-top:16px">
-		근로기준법 기준 참고 계산이에요. 주휴수당은 주 15시간 이상일 때, 야간·연장 가산은 설정에서 켤 수 있어요. 실제 지급 전 세무 담당자 확인을 권해요.
+		수당·주휴수당은 실제 근무·출퇴근 기록 기준 계산값이에요. 공제 방식은 설정에서 바꿀 수 있고, 실제 지급 전 세무 담당자 확인을 권해요.
 	</p>
 {/if}
