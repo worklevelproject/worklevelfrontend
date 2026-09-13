@@ -3,30 +3,28 @@
 	import { session } from '$lib/stores/session.js';
 	import { getMyProfile, updateMyAlias } from '$lib/api/store.js';
 	import { getList as getDocList } from '$lib/api/contractDocument.js';
-	import { getMyWorkRequests } from '$lib/api/work.js';
+	import { getMyAttendanceHistory } from '$lib/api/attendance.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
-	import { DOCUMENT_TYPE } from '$lib/utils/labels.js';
-	import { fmt, todayISO } from '$lib/utils/date.js';
+	import { DOCUMENT_TYPE, ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
+	import { fmt, toHM } from '$lib/utils/date.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
 	import CorrectionDrawer from '$lib/components/drawers/CorrectionDrawer.svelte';
 
 	let profile = $state(/** @type {any} */ (null));
 	let docs = $state(/** @type {any[]} */ ([]));
-	let recentWorks = $state(/** @type {any[]} */ ([]));
 	let editingAlias = $state(false);
 	let aliasInput = $state('');
 
+	// 실제 체크인/아웃 시각·근무시간이 담긴 본인 출퇴근 이력(신규 API) - "최근 근무"에 씀.
+	const history = createPagedList((offset) => getMyAttendanceHistory($session.storeId, { offset }));
+
 	async function load() {
-		const [p, dl, accepted] = await Promise.all([
-			getMyProfile($session.storeId),
-			getDocList($session.ticketId),
-			getMyWorkRequests($session.storeId, 'ACCEPT')
-		]);
+		const [p, dl] = await Promise.all([getMyProfile($session.storeId), getDocList($session.ticketId), history.load()]);
 		profile = p;
 		docs = dl;
 		aliasInput = p.alias;
-		recentWorks = accepted.filter((w) => w.workStartTime.slice(0, 10) <= todayISO()).sort((a, b) => b.workStartTime.localeCompare(a.workStartTime)).slice(0, 6);
 	}
 	onMount(load);
 
@@ -39,8 +37,8 @@
 		load();
 	}
 
-	function correctFor(w) {
-		openDrawer(CorrectionDrawer, { workRequestId: w.workRequestId, date: w.workStartTime.slice(0, 10), onDone: load });
+	function correctFor(a) {
+		openDrawer(CorrectionDrawer, { workRequestId: a.workRequestId, date: a.workDate, onDone: load });
 	}
 </script>
 
@@ -67,20 +65,22 @@
 			<div class="sec">
 				<div class="sec-h"><h3>최근 근무</h3></div>
 				<table class="tbl">
-					<thead><tr><th>날짜</th><th>시간</th><th></th></tr></thead>
+					<thead><tr><th>날짜</th><th>예정</th><th>실제 출퇴근</th><th>상태</th><th></th></tr></thead>
 					<tbody>
-						{#each recentWorks as w (w.workRequestId)}
+						{#each history.items as a (a.workRequestId)}
 							<tr>
-								<td class="t">{fmt(w.workStartTime.slice(0, 10))}</td>
-								<td class="num">{w.workStartTime.slice(11, 16)}–{w.workEndTime.slice(11, 16)}</td>
-								<td><button class="link" onclick={() => correctFor(w)}>기록 고치기</button></td>
+								<td class="t">{fmt(a.workDate)}</td>
+								<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
+								<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}{a.checkOut ? ' → ' + toHM(a.checkOutTime) : ''}</td>
+								<td><span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span></td>
+								<td><button class="link" onclick={() => correctFor(a)}>기록 고치기</button></td>
 							</tr>
 						{:else}
-							<tr><td colspan="3"><div class="empty">기록이 없어요</div></td></tr>
+							<tr><td colspan="5"><div class="empty">기록이 없어요</div></td></tr>
 						{/each}
 					</tbody>
 				</table>
-				<p class="tiny muted" style="margin-top:12px">출퇴근 시각 상세 조회 API가 직원에게는 아직 없어서, 실제 출퇴근 시각은 여기 표시되지 않아요.<span class="mock-badge">API 미비</span></p>
+				{#if history.hasNext}<button class="btn s" style="margin-top:10px" onclick={history.loadMore}>더보기</button>{/if}
 			</div>
 		</div>
 		<div>

@@ -4,9 +4,9 @@
 	import { getWorks } from '$lib/api/work.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, dateOf } from '$lib/utils/date.js';
 	import { WORK_REQUEST_STATUS, statusPillClass } from '$lib/utils/labels.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let weekOffset = $state(0);
-	let works = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
 
 	const baseMonday = mondayOf(todayISO());
@@ -14,11 +14,17 @@
 	const ws = $derived(weekOf(monday));
 	const today = todayISO();
 
+	// 한 달 치를 offset 페이징으로 받는다 - 이번 주가 속한 달에 근무가 10건을 넘으면
+	// "더보기"로 이어 받는다.
+	const works = createPagedList((offset) => {
+		const m = dateOf(monday);
+		return getWorks($session.storeId, { year: m.getFullYear(), month: m.getMonth() + 1, offset });
+	});
+
 	async function load() {
 		loading = true;
 		try {
-			const m = dateOf(monday);
-			works = await getWorks($session.storeId, { year: m.getFullYear(), month: m.getMonth() + 1 });
+			await works.load();
 		} finally {
 			loading = false;
 		}
@@ -29,7 +35,7 @@
 	});
 
 	function worksOf(iso) {
-		return works.filter((w) => w.startTime?.slice(0, 10) === iso);
+		return works.items.filter((w) => w.startTime?.slice(0, 10) === iso);
 	}
 </script>
 
@@ -61,4 +67,5 @@
 			</div>
 		{/each}
 	</div>
+	{#if works.hasNext}<button class="btn s" style="margin-top:10px" onclick={works.loadMore}>더보기</button>{/if}
 {/if}

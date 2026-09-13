@@ -4,16 +4,17 @@
 	import { getTasks } from '$lib/api/task.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { CONTENT_TYPE, TASK_RECURRENCE_TYPE, TASK_RESPONSE_STATUS, taskResponsePillClass } from '$lib/utils/labels.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import TaskDetailDrawer from '$lib/components/drawers/TaskDetailDrawer.svelte';
 	import TaskFormDrawer from '$lib/components/drawers/TaskFormDrawer.svelte';
 
-	let list = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
+	const list = createPagedList((offset) => getTasks($session.storeId, offset));
 
 	async function load() {
 		loading = true;
 		try {
-			list = await getTasks($session.storeId);
+			await list.load();
 		} finally {
 			loading = false;
 		}
@@ -44,7 +45,7 @@
 	<table class="tbl">
 		<thead><tr><th>할 일</th><th>답하는 방법</th><th>반복</th><th>담당</th><th>상태</th><th></th></tr></thead>
 		<tbody>
-			{#each list as t (t.id)}
+			{#each list.items as t (t.id)}
 				<tr class="click" onclick={() => open(t.id)}>
 					<td><span class="t">{t.title}</span></td>
 					<td><span class="kind">{CONTENT_TYPE[t.contentType]}</span></td>
@@ -64,4 +65,5 @@
 			{/each}
 		</tbody>
 	</table>
+	{#if list.hasNext}<button class="btn s" style="margin-top:10px" onclick={list.loadMore}>더보기</button>{/if}
 {/if}

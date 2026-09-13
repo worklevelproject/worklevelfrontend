@@ -1,7 +1,8 @@
 import { get, post, patch, del } from './client.js';
 
 // ── 접근 허용(전직원) ──────────────────────────────────────────
-export const getTasks = (storeId) => get(`/stores/${storeId}/tasks`);
+// PageResponse<TaskSummaryResponse, Void> 봉투 - createPagedList로 소비한다.
+export const getTasks = (storeId, offset = 0) => get(`/stores/${storeId}/tasks`, { offset });
 export const getTask = (storeId, taskId) => get(`/stores/${storeId}/tasks/${taskId}`);
 
 // ── 점주 전용 ────────────────────────────────────────────────

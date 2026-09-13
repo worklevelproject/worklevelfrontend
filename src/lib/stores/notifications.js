@@ -11,7 +11,7 @@ export async function refreshNotifications() {
 	const s = get(session);
 	if (!s.storeId) return;
 	try {
-		notifications.set(await getMyAlarms(s.storeId));
+		notifications.set((await getMyAlarms(s.storeId)).content);
 	} catch {
 		/* 알림 갱신 실패는 조용히 무시 - 배지가 잠깐 안 맞는 정도라 화면을 막을 정도는 아님 */
 	}

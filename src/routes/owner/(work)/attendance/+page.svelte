@@ -6,22 +6,19 @@
 	import { todayISO, toHM, fmtS, hh } from '$lib/utils/date.js';
 	import { ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
 	import { showToast } from '$lib/stores/toast.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let tab = $state('today');
 	let items = $state(/** @type {any[]} */ ([]));
-	let corrections = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
 	const T = todayISO();
+	const corrections = createPagedList((offset) => getAttendanceCorrections($session.storeId, offset));
 
 	async function load() {
 		loading = true;
 		try {
-			const [att, corr] = await Promise.all([
-				getAttendance($session.storeId, T),
-				getAttendanceCorrections($session.storeId)
-			]);
+			const [att] = await Promise.all([getAttendance($session.storeId, T), corrections.load()]);
 			items = att;
-			corrections = corr;
 		} finally {
 			loading = false;
 		}
@@ -30,7 +27,7 @@
 
 	const todays = $derived(items.filter((a) => a.workDate === T));
 	const isLate = (a) => a.checkIn && a.checkInTime && hh(toHM(a.checkInTime)) - hh(toHM(a.workStartTime)) > 10 / 60;
-	const pendingCorr = $derived(corrections.filter((c) => !c.resolved));
+	const pendingCorr = $derived(corrections.items.filter((c) => !c.resolved));
 
 	async function confirm(id) {
 		try {
@@ -116,7 +113,7 @@
 	</table>
 {:else}
 	<div class="rows" style="max-width:760px">
-		{#each corrections as c (c.workRequestId)}
+		{#each corrections.items as c (c.workRequestId)}
 			<div class="row">
 				<div class="avatar">{c.alias?.slice(1)}</div>
 				<div class="main">
@@ -141,5 +138,6 @@
 		{:else}
 			<div class="empty">요청이 없어요</div>
 		{/each}
+		{#if corrections.hasNext}<button class="btn s" style="margin-top:10px" onclick={corrections.loadMore}>더보기</button>{/if}
 	</div>
 {/if}

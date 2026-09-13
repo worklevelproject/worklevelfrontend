@@ -1,8 +1,9 @@
 import { get, post, patch, del } from './client.js';
 
 // category: 'NOTICE' | 'EDUCATION' | 'RECIPE'
-export const getManualItems = (storeId, category) =>
-	get(`/stores/${storeId}/manual-items`, { category });
+// PageResponse<ManualItemResponse, {category}> 봉투 - createPagedList로 소비한다.
+export const getManualItems = (storeId, category, offset = 0) =>
+	get(`/stores/${storeId}/manual-items`, { category, offset });
 export const getManualItem = (storeId, manualItemId) =>
 	get(`/stores/${storeId}/manual-items/${manualItemId}`);
 

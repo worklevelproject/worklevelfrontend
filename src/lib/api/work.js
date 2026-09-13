@@ -1,11 +1,13 @@
 import { get, post, patch, del } from './client.js';
 
 // ── 접근 허용(전직원) ──────────────────────────────────────────
-export const getWorks = (storeId, { workType, year, month } = {}) =>
-	get(`/stores/${storeId}/works`, { workType, year, month });
+// 목록 조회는 전부 PageResponse<T,S> 봉투({content, search, offset, limit, totalCount, hasNext})로
+// 온다 - lib/utils/pagedList.svelte.js의 createPagedList로 offset을 이어가며 소비한다.
+export const getWorks = (storeId, { workType, year, month, offset = 0 } = {}) =>
+	get(`/stores/${storeId}/works`, { workType, year, month, offset });
 export const getWork = (storeId, workId) => get(`/stores/${storeId}/works/${workId}`);
-export const getMyWorkRequests = (storeId, status) =>
-	get(`/stores/${storeId}/work-requests/mine`, { status });
+export const getMyWorkRequests = (storeId, status, offset = 0) =>
+	get(`/stores/${storeId}/work-requests/mine`, { status, offset });
 export const acceptWorkRequest = (storeId, workRequestId) =>
 	post(`/stores/${storeId}/work-requests/${workRequestId}/accept`);
 export const rejectWorkRequest = (storeId, workRequestId, reason) =>
@@ -24,16 +26,16 @@ export const updateWork = (storeId, workId, body) =>
 export const deleteWork = (storeId, workId) => del(`/stores/${storeId}/owner/works/${workId}`);
 export const getWorkQrCode = (storeId, workId) =>
 	get(`/stores/${storeId}/owner/works/${workId}/qr-code`);
-export const getStoreWorkRequests = (storeId, status) =>
-	get(`/stores/${storeId}/owner/work-requests`, { status });
+export const getStoreWorkRequests = (storeId, status, offset = 0) =>
+	get(`/stores/${storeId}/owner/work-requests`, { status, offset });
 export const deleteWorkRequest = (storeId, workRequestId) =>
 	del(`/stores/${storeId}/owner/work-requests/${workRequestId}`);
 export const confirmAttendanceCorrection = (storeId, workRequestId) =>
 	post(`/stores/${storeId}/owner/work-requests/${workRequestId}/attendance-correction/confirm`);
 export const rejectAttendanceCorrection = (storeId, workRequestId) =>
 	post(`/stores/${storeId}/owner/work-requests/${workRequestId}/attendance-correction/reject`);
-export const getAttendanceCorrections = (storeId) =>
-	get(`/stores/${storeId}/owner/work-requests/attendance-corrections`);
+export const getAttendanceCorrections = (storeId, offset = 0) =>
+	get(`/stores/${storeId}/owner/work-requests/attendance-corrections`, { offset });
 export const getOwnerWeeklySchedule = (storeId, date) =>
 	get(`/stores/${storeId}/owner/works/weekly`, { date });
 export const getOwnerMonthlySchedule = (storeId, year, month) =>

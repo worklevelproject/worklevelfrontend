@@ -17,7 +17,7 @@
 	async function load() {
 		loading = true;
 		try {
-			list = await getEmployeeStats($session.storeId, activeTab);
+			list = (await getEmployeeStats($session.storeId, activeTab)).content;
 		} finally {
 			loading = false;
 		}

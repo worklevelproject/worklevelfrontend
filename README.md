@@ -1,7 +1,9 @@
 # WORKLEVEL 프론트엔드 (SvelteKit)
 
-루트의 `worklevel-src/` 정적 프로토타입을 SvelteKit(Svelte 5) 기반으로 옮기고, 실제 백엔드 API에
-연결한 결과물이다. 백엔드 연동 현황과 남은 과제는 `docs/API_MAPPING.md`와 `docs/KNOWN_GAPS.md`를 본다.
+루트의 `worlvprototypenewvesionsrc/` 정적 프로토타입(v8)을 SvelteKit(Svelte 5) 기반으로 옮기고, 실제
+백엔드 API에 연결한 결과물이다. v8은 점주 메뉴를 오늘/근무/직원/매장 4개로 재편하고, 오늘 화면에 다음
+주 근무표 상태·되는 시간 제출률 카드를, 근무 화면에 자동 근무표 초안 기능을 새로 추가했다. 백엔드
+연동 현황과 남은 과제는 `docs/API_MAPPING.md`와 `docs/KNOWN_GAPS.md`를 본다.
 
 ## 실행하기
 
@@ -37,7 +39,7 @@ npm run dev
 
 ```
 src/
-  app.css                  프로토타입 01-styles-and-markup.html의 CSS를 그대로 옮긴 전역 스타일
+  app.css                  프로토타입 web4-head.html의 CSS를 그대로 옮긴 전역 스타일
   lib/
     api/                   도메인별 fetch 래퍼 (client.js가 토큰 갱신·에러 처리 공통 담당)
     stores/                전역 상태 (session, toast, drawer, confirm, notifications, mock)

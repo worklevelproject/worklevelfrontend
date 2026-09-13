@@ -4,16 +4,20 @@
 	import { getTasks } from '$lib/api/task.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { CONTENT_TYPE, TASK_RESPONSE_STATUS, taskResponsePillClass } from '$lib/utils/labels.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import TaskAnswerDrawer from '$lib/components/drawers/TaskAnswerDrawer.svelte';
 
-	let list = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
+	const tasks = createPagedList((offset) => getTasks($session.storeId, offset));
+	// 내게 배정된 것만 클라이언트에서 필터(백엔드 목록 API가 담당자 필터를 안 받음) - "더보기"는
+	// 전체 할 일 기준으로 다음 페이지를 이어 받으므로, 한 번에 안 보이던 내 할 일이 더보기 후에
+	// 나타날 수 있다.
+	const list = $derived(tasks.items.filter((t) => t.latestResponse?.ticketId === $session.ticketId));
 
 	async function load() {
 		loading = true;
 		try {
-			const all = await getTasks($session.storeId);
-			list = all.filter((t) => t.latestResponse?.ticketId === $session.ticketId);
+			await tasks.load();
 		} finally {
 			loading = false;
 		}
@@ -59,4 +63,5 @@
 			{/each}
 		</tbody>
 	</table>
+	{#if tasks.hasNext}<button class="btn s" style="margin-top:10px" onclick={tasks.loadMore}>더보기</button>{/if}
 {/if}

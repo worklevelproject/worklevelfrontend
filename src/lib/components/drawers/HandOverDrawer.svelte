@@ -17,8 +17,8 @@
 
 	onMount(async () => {
 		try {
-			const list = await getHandOvers($session.storeId, workId);
-			existing = list[0] || null;
+			const page = await getHandOvers($session.storeId, workId);
+			existing = page.content[0] || null;
 			content = existing?.content || '';
 		} finally {
 			loading = false;

@@ -7,6 +7,7 @@
 	import { WORK_REQUEST_STATUS, statusPillClass } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import ShiftDetailDrawer from '$lib/components/drawers/ShiftDetailDrawer.svelte';
+	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
 
 	let weekOffset = $state(0);
 	let schedule = $state(/** @type {any} */ (null));
@@ -57,6 +58,7 @@
 		<button class="btn s" onclick={() => weekOffset--}>‹ 지난주</button>
 		<button class="btn s" disabled={weekOffset === 0} onclick={() => (weekOffset = 0)}>이번 주</button>
 		<button class="btn s" onclick={() => weekOffset++}>다음 주 ›</button>
+		<button class="btn o" onclick={() => openDrawer(ScheduleDraftDrawer, { onDone: load })}>다음 주 초안 만들기</button>
 		<button class="btn p" onclick={() => openAdd(today)}>근무 넣기</button>
 	</div>
 </div>

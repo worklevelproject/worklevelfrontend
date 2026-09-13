@@ -13,17 +13,38 @@
 목록" 조회 API를 하나 추가하면 이 우회가 통째로 없어진다. 로그인 직후 매장 선택 화면을 만들 때도
 필요하다(지금은 마지막으로 골랐던 storeId를 `localStorage`에 저장해두는 걸로 때움).
 
-## 2. 직원 본인의 출퇴근 상태/이력을 조회할 방법이 없다
+## 2. (해결됨, 2026-09-13) 직원 본인의 출퇴근 상태/이력을 조회할 방법이 없다
 
-- 대시보드 API(`GET .../owner/dashboard/attendance`)는 점주 전용(`/owner/` 경로, `StoreOwnerFilter`)이라 직원 본인은 호출할 수 없다.
-- `checkIn`/`checkOut`/`accept`/정정 제안 API는 그 순간의 `WorkRequestCheckResponse`(checkIn/checkOut 여부·시각)를 응답으로 주지만, 이후 새로고침하면 그 값을 다시 읽어올 API가 없다.
+백엔드에 `GET /stores/{storeId}/attendances/mine?fromDate=&toDate=&offset=`(직원 본인 출퇴근 이력
+조회, 아무 활성 티켓이나 호출 가능)가 새로 생기며 해결됐다. `AttendanceItemResponse`가
+`workRequestId, ticketId, alias, workDate, workStartTime, workEndTime, checkInTime, checkIn,
+checkOutTime, checkOut, workMinutes, status`를 준다.
 
-그래서 `/staff/today` 화면은 그 세션에서 직접 버튼을 눌러 받은 응답만 상태로 들고 있고,
-새로고침하면 다시 "출근 전"으로 보인다. `/staff/me`의 "최근 근무"도 날짜·시간만 보여주고 실제
-체크인/아웃 시각은 못 보여준다.
+- `/staff/today`: 버튼을 눌러 받은 응답으로 낙관적 갱신하는 건 그대로 두되, 화면 로드 시 오늘
+  날짜로 이 API를 호출해 진실 소스로 삼는다 — 새로고침해도 더 이상 "출근 전"으로 리셋되지 않는다.
+- `/staff/me`: "최근 근무" 목록을 이 API 기반으로 바꿔 실제 체크인/아웃 시각·근무시간을 보여준다.
 
-**제안**: `GET /stores/{storeId}/work-requests/mine`에 checkIn/checkOut 여부·시각 필드를 추가하거나
-(가장 간단), `GET /stores/{storeId}/me/attendance` 같은 본인 전용 조회 API를 추가한다.
+(옛 제안이었던 "work-requests/mine에 필드 추가" 대신 별도 엔드포인트로 해결됨 — 목록형이라
+`lib/utils/pagedList.js` 페이징 패턴을 그대로 적용.)
+
+## 2-1. (신규) 되는 시간 제출률을 "다음 주" 기준으로 볼 수 없다
+
+`GET /stores/{storeId}/owner/available-times/weekly`는 항상 "호출 시점 기준 이번 주(월~일)"만
+반환한다(`AvailableTimeService.getOwnerWeeklyAvailability`가 `weekStart`를
+`LocalDate.now().with(previousOrSame(MONDAY))`로 고정). 직원은 항상 "다음 주" 가능 시간을
+제출하므로, 지금 진행 중인(아직 시작 안 한) 다음 주의 제출 현황을 점주가 미리 확인하려는 용도로는
+이 API가 정확한 주를 못 준다 — 오늘 화면의 "되는 시간 제출률" 배너는 일단 이 API가 주는 "이번
+주"(=직전에 마감된 제출 주기) 데이터로만 구현했고, 기획상 진짜 필요한 게 "다음 주 실시간 제출
+현황"이라면 백엔드에 조회 대상 주(`weekStart`) 파라미터를 추가하는 게 필요하다. 버그가 아니라
+확인이 필요한 지점 — 기획/백엔드와 상의해서 결정하면 좋겠다.
+
+## 2-2. (신규) 자동 근무표 초안에 휴가/휴무 차단 로직이 빠져 있다
+
+v8 프로토타입의 `genDraft()`는 배정 후보를 고를 때 그 직원이 그날 휴가/휴무 중인지도 걸러내는데,
+백엔드에 휴가(leave) 도메인 자체가 없다. 그래서 포팅한 자동 근무표 초안(`lib/utils/scheduleDraft.js`)은
+이 필터를 조용히 빼고, 가능 시간대·이번주 확정 근무·40시간/6일연속 조건만으로 후보를 추린다.
+휴가 개념을 백엔드에 추가하기 전까지는, 초안이 이미 쉬기로 한 직원을 후보로 올릴 수 있다는 점을
+운영자가 감안해야 한다.
 
 ## 3. 직원 화면에서 동료 근무표를 볼 수 없다
 

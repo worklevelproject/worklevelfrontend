@@ -7,20 +7,20 @@
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { rel, toHM } from '$lib/utils/date.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import NoticeDrawer from '$lib/components/drawers/NoticeDrawer.svelte';
 
 	let tab = $state('notice');
-	let notices = $state(/** @type {any[]} */ ([]));
-	let handovers = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
 	let openId = $state(/** @type {number | null} */ (null));
+
+	const notices = createPagedList((offset) => getNotices($session.storeId, offset));
+	const handovers = createPagedList((offset) => getHandOvers($session.storeId, undefined, offset));
 
 	async function load() {
 		loading = true;
 		try {
-			const [n, h] = await Promise.all([getNotices($session.storeId), getHandOvers($session.storeId)]);
-			notices = n;
-			handovers = h;
+			await Promise.all([notices.load(), handovers.load()]);
 		} finally {
 			loading = false;
 		}
@@ -51,8 +51,8 @@
 	</div>
 	<div class="acts">
 		<div class="seg lg">
-			<button class={tab === 'notice' ? 'on' : ''} onclick={() => (tab = 'notice')}>공지 {notices.length}</button>
-			<button class={tab === 'handover' ? 'on' : ''} onclick={() => (tab = 'handover')}>마감 노트 {handovers.length}</button>
+			<button class={tab === 'notice' ? 'on' : ''} onclick={() => (tab = 'notice')}>공지 {notices.items.length}</button>
+			<button class={tab === 'handover' ? 'on' : ''} onclick={() => (tab = 'handover')}>마감 노트 {handovers.items.length}</button>
 		</div>
 		{#if tab === 'notice'}<button class="btn p" onclick={write}>공지 쓰기</button>{/if}
 	</div>
@@ -62,7 +62,7 @@
 	<div class="empty">불러오는 중…</div>
 {:else if tab === 'notice'}
 	<div class="card w" style="max-width:820px;padding:4px 20px">
-		{#each notices as n (n.id)}
+		{#each notices.items as n (n.id)}
 			<div class="notice" role="button" tabindex="0" onclick={() => (openId = openId === n.id ? null : n.id)} onkeydown={(e) => e.key === 'Enter' && (openId = openId === n.id ? null : n.id)}>
 				<div class="main">
 					<div class="t">{n.title}</div>
@@ -75,10 +75,11 @@
 		{:else}
 			<div class="empty">공지가 없어요</div>
 		{/each}
+		{#if notices.hasNext}<button class="btn s" style="margin-top:10px" onclick={notices.loadMore}>더보기</button>{/if}
 	</div>
 {:else}
 	<div class="card w" style="max-width:820px;padding:4px 20px">
-		{#each handovers as h (h.id)}
+		{#each handovers.items as h (h.id)}
 			<div class="notice" style="cursor:default">
 				<div class="avatar" style="width:32px;height:32px;font-size:11px">{h.writer.alias.slice(1)}</div>
 				<div class="main">
@@ -89,5 +90,6 @@
 		{:else}
 			<div class="empty">아직 없어요</div>
 		{/each}
+		{#if handovers.hasNext}<button class="btn s" style="margin-top:10px" onclick={handovers.loadMore}>더보기</button>{/if}
 	</div>
 {/if}

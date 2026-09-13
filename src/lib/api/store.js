@@ -11,6 +11,8 @@ export const updateMyAlias = (storeId, alias) => patch(`/stores/${storeId}/alias
 
 // ── 점주 전용 ────────────────────────────────────────────────
 export const deleteStore = (storeId) => del(`/stores/${storeId}/owner/store`);
+/** 응답이 PageResponse<EmployeeStatResponse, {active}> 봉투로 오므로 호출부에서 .content를 꺼내 써야
+ * 한다(offset 파라미터는 없음 - 사실상 한 페이지로 전체 직원을 준다). */
 export const getEmployeeStats = (storeId, active = true) =>
 	get(`/stores/${storeId}/owner/employees/stats`, { active });
 export const getEmployeeDetail = (storeId, ticketId) =>

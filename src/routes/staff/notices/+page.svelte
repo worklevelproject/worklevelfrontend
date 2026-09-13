@@ -3,14 +3,16 @@
 	import { session } from '$lib/stores/session.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { rel, toHM } from '$lib/utils/date.js';
+	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
-	let notices = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
 	let openId = $state(/** @type {number | null} */ (null));
 
+	const notices = createPagedList((offset) => getNotices($session.storeId, offset));
+
 	onMount(async () => {
 		try {
-			notices = await getNotices($session.storeId);
+			await notices.load();
 		} finally {
 			loading = false;
 		}
@@ -29,7 +31,7 @@
 	<div class="empty">불러오는 중…</div>
 {:else}
 	<div class="card w" style="max-width:820px;padding:4px 20px">
-		{#each notices as n (n.id)}
+		{#each notices.items as n (n.id)}
 			<div class="notice" role="button" tabindex="0" onclick={() => view(n)} onkeydown={(e) => e.key === 'Enter' && view(n)}>
 				<div class="main">
 					<div class="t">{n.title}</div>
@@ -40,5 +42,6 @@
 		{:else}
 			<div class="empty">공지가 없어요</div>
 		{/each}
+		{#if notices.hasNext}<button class="btn s" style="margin-top:10px" onclick={notices.loadMore}>더보기</button>{/if}
 	</div>
 {/if}

@@ -7,19 +7,19 @@
 	/** @type {{owner: boolean}} */
 	let { owner } = $props();
 
+	// v8 프로토타입의 4메뉴(오늘/근무/직원/매장) 그대로 - 각 그룹 하위 화면은 URL은 그대로 두고
+	// GroupTabs로 탭 전환된다(owner/(work|people|store)/+layout.svelte 참고).
 	const OWNER_GROUPS = [
+		['오늘', [['/owner/today', '오늘', 'home']]],
 		[
-			'운영',
+			'근무',
 			[
-				['/owner/today', '오늘', 'home'],
 				['/owner/shifts', '근무표', 'cal'],
-				['/owner/attendance', '출퇴근', 'clock'],
-				['/owner/tasks', '할 일', 'check'],
-				['/owner/notices', '공지 · 인수인계', 'bell']
+				['/owner/attendance', '출퇴근', 'clock']
 			]
 		],
 		[
-			'사람',
+			'직원',
 			[
 				['/owner/staff', '직원', 'users'],
 				['/owner/payroll', '급여', 'won'],
@@ -29,6 +29,8 @@
 		[
 			'매장',
 			[
+				['/owner/tasks', '할 일', 'check'],
+				['/owner/notices', '공지 · 인수인계', 'bell'],
 				['/owner/recipes', '레시피', 'cup'],
 				['/owner/sales', '매출', 'won']
 			]

@@ -3,12 +3,13 @@
 	import { session } from '$lib/stores/session.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { getAttendance } from '$lib/api/dashboard.js';
-	import { getAttendanceCorrections, confirmAttendanceCorrection, rejectAttendanceCorrection, getStoreWorkRequests } from '$lib/api/work.js';
+	import { getAttendanceCorrections, confirmAttendanceCorrection, rejectAttendanceCorrection, getStoreWorkRequests, getOwnerWeeklySchedule } from '$lib/api/work.js';
+	import { getOwnerWeeklyAvailability } from '$lib/api/availableTime.js';
 	import { getEmployeeStats } from '$lib/api/store.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { getHandOvers } from '$lib/api/handover.js';
 	import { getStoreSalary } from '$lib/api/cost.js';
-	import { todayISO, hh, toHM, rel } from '$lib/utils/date.js';
+	import { todayISO, mondayOf, addDays, hh, toHM, rel } from '$lib/utils/date.js';
 	import { won, man } from '$lib/utils/format.js';
 	import { deductionFor } from '$lib/utils/payroll.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -16,6 +17,7 @@
 	import { ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import NoticeDrawer from '$lib/components/drawers/NoticeDrawer.svelte';
+	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
 
 	let loading = $state(true);
 	let error = $state('');
@@ -26,6 +28,8 @@
 	let notices = $state(/** @type {any[]} */ ([]));
 	let handovers = $state(/** @type {any[]} */ ([]));
 	let salary = $state(/** @type {any[]} */ ([]));
+	let nextWeek = $state(/** @type {any} */ (null));
+	let avail = $state(/** @type {any} */ (null));
 
 	const T = todayISO();
 	const nowH = () => {
@@ -38,22 +42,27 @@
 		error = '';
 		try {
 			const storeId = $session.storeId;
-			const [att, corr, rej, empStats, n, h, sal] = await Promise.all([
+			const nextMonday = addDays(mondayOf(T), 7);
+			const [att, corr, rej, empStats, n, h, sal, nw, av] = await Promise.all([
 				getAttendance(storeId, T),
 				getAttendanceCorrections(storeId),
 				getStoreWorkRequests(storeId, 'REJECT'),
 				getEmployeeStats(storeId, true),
 				getNotices(storeId),
 				getHandOvers(storeId),
-				getStoreSalary(storeId)
+				getStoreSalary(storeId),
+				getOwnerWeeklySchedule(storeId, nextMonday),
+				getOwnerWeeklyAvailability(storeId)
 			]);
 			items = att.filter((a) => a.workDate === T);
-			corrections = corr.filter((c) => !c.resolved);
-			rejected = rej.filter((r) => r.workStartTime?.slice(0, 10) >= T);
-			stats = empStats;
-			notices = n;
-			handovers = h;
+			corrections = corr.content.filter((c) => !c.resolved);
+			rejected = rej.content.filter((r) => r.workStartTime?.slice(0, 10) >= T);
+			stats = empStats.content;
+			notices = n.content;
+			handovers = h.content;
 			salary = sal;
+			nextWeek = nw;
+			avail = av;
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
@@ -61,6 +70,25 @@
 		}
 	}
 	onMount(load);
+
+	// 다음 주 근무표 상태: nextWeek(getOwnerWeeklySchedule 응답)의 워커별 수락 상태를 모아
+	// 비어있음/대기중/확정 3상태로 요약한다(신규 API 없이 기존 응답만 사용).
+	const nextWeekWorkers = $derived((nextWeek?.days ?? []).flatMap((d) => d.works.flatMap((w) => w.workers)));
+	const nextWeekState = $derived(
+		nextWeekWorkers.length === 0 ? 'empty' : nextWeekWorkers.some((w) => w.status === 'PENDING') ? 'wait' : 'confirmed'
+	);
+	const nextWeekWaiting = $derived(nextWeekWorkers.filter((w) => w.status === 'PENDING').length);
+
+	// 되는 시간 제출률: avail(getOwnerWeeklyAvailability 응답)이 매일 활성 직원 전원을 포함하고,
+	// 그날 제출한 timeTypes가 없으면 빈 배열로 온다 - 하루라도 제출했으면 "제출함"으로 센다.
+	// 한계: 이 API는 항상 "호출 시점 기준 이번 주"만 주므로, 다음 주 진행 중인 제출 현황을 정확히
+	// 못 볼 수 있다(docs/KNOWN_GAPS.md #2-1).
+	const availEmployees = $derived(avail?.days?.[0]?.employees ?? []);
+	const submittedIds = $derived(
+		new Set((avail?.days ?? []).flatMap((d) => d.employees.filter((e) => e.timeTypes.length > 0).map((e) => e.ticketId)))
+	);
+	const subRate = $derived(availEmployees.length ? Math.round((submittedIds.size / availEmployees.length) * 100) : 100);
+	const notSubmitted = $derived(availEmployees.filter((e) => !submittedIds.has(e.ticketId)));
 
 	const isLate = (a) => a.checkIn && a.checkInTime && hh(toHM(a.checkInTime)) - hh(toHM(a.workStartTime)) > 10 / 60;
 	const planned = $derived(items);
@@ -119,6 +147,32 @@
 		<button class="late"><b class="num">{lateCount}</b><span>지각</span></button>
 		<button class="abs"><b class="num">{notYet}</b><span>아직 안 온 직원</span></button>
 		<a href="/owner/sales"><b class="num" style="font-size:20px">{won(today.total)}</b><span>오늘 매출 · 어제 {man(yesterday.total)}<span class="mock-badge">목업</span></span></a>
+	</div>
+
+	<div class="cols eq" style="margin-top:12px">
+		{#if nextWeekState === 'empty'}
+			<button class="card w" style="text-align:left" onclick={() => openDrawer(ScheduleDraftDrawer, { onDone: load })}>
+				<div class="tiny muted">다음 주 근무표</div>
+				<p style="margin-top:4px">아직 비어 있어요 · 초안 만들기</p>
+			</button>
+		{:else}
+			<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
+				<div class="tiny muted">다음 주 근무표</div>
+				{#if nextWeekState === 'wait'}
+					<p style="margin-top:4px">{nextWeekWaiting}개가 직원 답을 기다려요</p>
+				{:else}
+					<p style="margin-top:4px">다 확정됐어요</p>
+				{/if}
+			</a>
+		{/if}
+		{#if subRate < 100}
+			<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
+				<div class="tiny muted">되는 시간 제출률</div>
+				<p style="margin-top:4px;{subRate < 70 ? 'color:var(--bad)' : ''}">
+					아직 안 보낸 직원 {notSubmitted.length}명 · 제출률 {subRate}%
+				</p>
+			</a>
+		{/if}
 	</div>
 
 	<div class="cols">

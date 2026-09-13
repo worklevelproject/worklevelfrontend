@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getMyWorkRequests, acceptWorkRequest, checkIn as apiCheckIn, checkOut as apiCheckOut, getWork } from '$lib/api/work.js';
+	import { getMyAttendanceHistory } from '$lib/api/attendance.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { todayISO, toHM, fmt, hh } from '$lib/utils/date.js';
 	import { won } from '$lib/utils/format.js';
@@ -23,13 +24,20 @@
 	async function load() {
 		loading = true;
 		try {
-			const [accepted, req] = await Promise.all([
+			const [accepted, req, todayHistory] = await Promise.all([
 				getMyWorkRequests($session.storeId, 'ACCEPT'),
-				getMyWorkRequests($session.storeId, 'PENDING')
+				getMyWorkRequests($session.storeId, 'PENDING'),
+				getMyAttendanceHistory($session.storeId, { fromDate: T, toDate: T })
 			]);
-			mine = accepted;
-			pending = req;
-			const today = accepted.filter((w) => w.workStartTime?.slice(0, 10) === T);
+			mine = accepted.content;
+			pending = req.content;
+			// 새로고침해도 출근/퇴근 상태가 "출근 전"으로 리셋되지 않도록, 실제 출퇴근 이력을
+			// 진실 소스로 삼아 att를 채운다(버튼을 눌렀을 때의 낙관적 갱신은 doCheckIn/doCheckOut이
+			// 그대로 처리).
+			for (const a of todayHistory.content) {
+				att[a.workRequestId] = { checkIn: a.checkIn, checkInTime: a.checkInTime, checkOut: a.checkOut, checkOutTime: a.checkOutTime };
+			}
+			const today = mine.filter((w) => w.workStartTime?.slice(0, 10) === T);
 			const details = await Promise.all(today.map((w) => getWork($session.storeId, w.workId)));
 			details.forEach((d, i) => (timeTypes[today[i].workId] = d.timeType));
 		} finally {

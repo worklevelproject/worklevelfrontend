@@ -32,7 +32,7 @@
 			getStoreSalary($session.storeId)
 		]);
 		detail = d;
-		stat = stats.find((s) => s.ticketId === ticketId) || null;
+		stat = stats.content.find((s) => s.ticketId === ticketId) || null;
 		salaryRow = salary.find((s) => s.ticketId === ticketId) || null;
 		docs = dl;
 		form = {
