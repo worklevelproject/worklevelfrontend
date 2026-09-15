@@ -30,7 +30,7 @@
 			const storeId = $session.storeId;
 			const [currentWeekSchedule, availability, timeTemplates, empStats] = await Promise.all([
 				getOwnerWeeklySchedule(storeId, mondayOf(todayISO())),
-				getOwnerWeeklyAvailability(storeId),
+				getOwnerWeeklyAvailability(storeId, true),
 				getTemplates(storeId),
 				getEmployeeStats(storeId, true)
 			]);
@@ -78,7 +78,7 @@
 <DrawerShell title="다음 주 근무표 초안">
 	{#snippet children()}
 		{#if loading}
-			<div class="empty">이번 주 근무·되는 시간을 보고 초안을 만드는 중…</div>
+			<div class="empty">이번 주 근무·다음 주 되는 시간을 보고 초안을 만드는 중…</div>
 		{:else}
 			<p class="tiny muted">
 				이번 주 근무표를 뼈대로, 되는 시간·이번 초안 안 누적시간·정시출근율을 보고 배정해봤어요. 완성본이 아니라 초안이에요 - 확인하고 고친 뒤 반영해주세요.

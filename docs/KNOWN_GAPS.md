@@ -3,15 +3,13 @@
 프론트를 백엔드에 실제로 붙이면서 (문서만 봐서는 안 드러나던) 구멍들이 몇 개 나왔다. 각각 지금
 프론트가 어떻게 우회했는지와, 백엔드에 추가하면 좋을 API를 적어둔다.
 
-## 1. 가입 직후 storeId를 모른다
+## 1. (해결됨) 가입 직후 storeId를 몰라 수동 입력받던 문제
 
-`POST /stores/join`(초대코드 가입) 응답인 `TicketResponse`에는 `ticketId/jobRole/alias`만 있고
-`storeId`가 없다. 그래서 가입 직후 바로 그 매장으로 들어갈 수가 없어서, 온보딩 화면에서 storeId를
-직접 입력받는 임시 단계를 넣었다(`src/routes/onboarding/+page.svelte`의 `needsStoreId`).
-
-**제안**: `TicketResponse`에 `storeId`를 추가하거나, `GET /members/me/stores` 같은 "내가 속한 매장
-목록" 조회 API를 하나 추가하면 이 우회가 통째로 없어진다. 로그인 직후 매장 선택 화면을 만들 때도
-필요하다(지금은 마지막으로 골랐던 storeId를 `localStorage`에 저장해두는 걸로 때움).
+이전 작성분엔 `POST /stores/join` 응답(`TicketResponse`)에 `storeId`가 없어서 가입 직후 온보딩
+화면에서 storeId를 직접 입력받는 임시 단계(`needsStoreId`)를 넣었다고 적혀 있었는데, 실제로는
+`TicketResponse`에 `storeId`가 이미 있다(백엔드 커밋 `4aaeeb0`, `10d2d52`보다도 전) — 소스 대조
+없이 옛 메모를 그대로 옮겨적은 게 원인으로 보인다. `onboarding/+page.svelte`의 수동 입력 단계를
+지우고 `joinByInviteCode` 응답의 `ticket.storeId`로 바로 `session.selectStore`하도록 고쳤다.
 
 ## 2. (해결됨, 2026-09-13) 직원 본인의 출퇴근 상태/이력을 조회할 방법이 없다
 
@@ -27,16 +25,16 @@ checkOutTime, checkOut, workMinutes, status`를 준다.
 (옛 제안이었던 "work-requests/mine에 필드 추가" 대신 별도 엔드포인트로 해결됨 — 목록형이라
 `lib/utils/pagedList.js` 페이징 패턴을 그대로 적용.)
 
-## 2-1. (신규) 되는 시간 제출률을 "다음 주" 기준으로 볼 수 없다
+## 2-1. (해결됨, 2026-09-15) 되는 시간 제출률을 "다음 주" 기준으로 볼 수 없던 문제
 
-`GET /stores/{storeId}/owner/available-times/weekly`는 항상 "호출 시점 기준 이번 주(월~일)"만
-반환한다(`AvailableTimeService.getOwnerWeeklyAvailability`가 `weekStart`를
-`LocalDate.now().with(previousOrSame(MONDAY))`로 고정). 직원은 항상 "다음 주" 가능 시간을
-제출하므로, 지금 진행 중인(아직 시작 안 한) 다음 주의 제출 현황을 점주가 미리 확인하려는 용도로는
-이 API가 정확한 주를 못 준다 — 오늘 화면의 "되는 시간 제출률" 배너는 일단 이 API가 주는 "이번
-주"(=직전에 마감된 제출 주기) 데이터로만 구현했고, 기획상 진짜 필요한 게 "다음 주 실시간 제출
-현황"이라면 백엔드에 조회 대상 주(`weekStart`) 파라미터를 추가하는 게 필요하다. 버그가 아니라
-확인이 필요한 지점 — 기획/백엔드와 상의해서 결정하면 좋겠다.
+`GET /stores/{storeId}/owner/available-times/weekly`가 항상 "호출 시점 기준 이번 주(월~일)"만
+반환해서, 직원들이 지금 한창 제출 중인 "다음 주" 되는 시간 현황을 점주가 미리 못 봤다. 백엔드에
+`nextWeek`(boolean, 기본 false) 쿼리 파라미터가 추가돼 해결됨 —
+`GET .../owner/available-times/weekly?nextWeek=true`면 다음주(월~일) 범위를 대신 조회한다.
+
+프론트는 `lib/api/availableTime.js`의 `getOwnerWeeklyAvailability(storeId, nextWeek=false)`에
+파라미터를 추가하고, 실제로 "다음 주" 데이터가 필요한 두 곳(`owner/today` 되는 시간 제출률 배너,
+`ScheduleDraftDrawer`의 자동 근무표 초안)에서 `nextWeek: true`로 호출하도록 고쳤다.
 
 ## 2-2. (신규) 자동 근무표 초안에 휴가/휴무 차단 로직이 빠져 있다
 
@@ -56,26 +54,39 @@ v8 프로토타입의 `genDraft()`는 배정 후보를 고를 때 그 직원이 
 **제안**: 의도적인 제약(동료 개인정보 보호)일 수도 있어서, 이건 "버그"보다는 확인이 필요한 지점 —
 직원끼리 서로의 근무 시간을 보는 게 기획상 맞는지부터 정하면 좋겠다.
 
-## 4. PROTECTED 파일을 실제로 보여줄 CDN이 없다
+## 4. (해결됨, 2026-09-15) PROTECTED 파일을 실제로 보여줄 CDN이 없던 문제
 
 `POST /s3-files/protected-access`는 `{key, token}`만 주고 실제 조회 URL(CDN 호스트)은 클라이언트가
-직접 구성하라고 되어 있는데, 그 호스트 주소가 `application*.yaml` 어디에도 없다(`cdn-sign-secret`
-서명 시크릿만 있음). Cloudflare Worker 같은 실제 CDN 레이어가 이 저장소 밖에 있거나, 아직
-안 만들어졌거나 둘 중 하나로 보인다.
+직접 구성해야 하는데, 그 CDN 레이어(Cloudflare Worker, R2 버킷 `worklvnonpublic` 앞단)가 이
+저장소 밖에서 실제로 붙었다. Worker는 요청을 `token`이라는 **커스텀 헤더**(Authorization 아님)로
+받아 HS256으로 서명 검증하고, `sub===key`(요청 경로의 파일 key와 토큰 주체가 일치하는지),
+`approved===true`, 만료(`exp`)까지 확인한다 — 백엔드 `CdnTokenSigner`가 발급하는 토큰 형태와
+정확히 대응된다(같은 서명 시크릿을 공유해야 함: 백엔드 `CDN_SIGN_SECRET` = Worker의 서명 키).
 
-그래서 레시피 썸네일·근무 보고 사진 **업로드는 되지만**(presign PUT은 CDN과 무관하게 S3/R2로 바로
-가므로), 업로드된 사진을 다시 보여주는 `<img>`는 붙이지 않았다.
+`lib/api/s3file.js`에 `CDN_BASE_URL`(env `VITE_CDN_BASE_URL`)과 `loadProtectedImages(s3FileIds)`를
+추가했다 — `protected-access`로 파일별 `{key, token}`을 받은 뒤 `${CDN_BASE_URL}/${key}`를 커스텀
+헤더 `token`으로 fetch해 blob object URL로 바꿔준다(`<img src>`에 커스텀 헤더를 직접 못 걸어서
+fetch가 필요함 — 다 쓰면 `URL.revokeObjectURL`로 정리).
 
-**제안**: CDN 베이스 URL을 설정값(`app.s3.cdn-base-url` 같은)으로 추가하고, 프론트 `.env`의
-`VITE_CDN_BASE_URL`과 맞추면 바로 연결할 수 있다. `lib/api/s3file.js`의 `createProtectedAccess`는
-이미 구현돼 있다.
+지금 실제로 연결한 곳:
+- `TaskDetailDrawer`의 "할 일" PHOTO 응답(전에는 "사진 N장" 텍스트만 보여주고 실제 이미지는 안
+  띄웠음 → 이제 썸네일로 표시).
+- 레시피 썸네일 업로드/표시. `owner/recipes/[id]` 편집 화면에 사진 선택 input을 새로 추가해
+  `uploadFile(file, 'PROTECTED')`(계약서 등록과 같은 presign 업로드 패턴)로 올린 뒤
+  `thumbnailS3FileId`를 `createManualItem`/`updateManualItem` 요청에 실어 보낸다(파일을 새로 안
+  고르면 필드를 생략해 기존 썸네일 유지 — `ManualItemService.updateManualItem`이 null을 "안 바꿈"
+  으로 처리). 표시는 공용 `lib/components/ProtectedThumb.svelte`(id 없으면 `CupIcon` 색상 아이콘
+  폴백)로 통일해 점주 레시피 목록/편집·직원 레시피 목록/상세 4곳 모두에 적용.
 
-## 5. 매장 정보 수정 API가 없다
+## 5. (오기 정정) 매장 정보 수정 API는 이미 있다
 
-`StoreController`에 매장 생성/조회/삭제는 있지만 이름·주소·전화 수정(`PATCH`)이 없다. 설정 화면의
-"매장 정보" 탭은 그래서 읽기 전용이다.
+이전 작성분에 "매장 정보 수정 API가 없다"고 적혀 있었는데 확인해보니 사실이 아니다 —
+`PATCH /stores/{storeId}/owner/config`(`UpdateStoreConfigRequest`: name/address/tel)가
+`StoreController`에 이미 있고, `lib/api/store.js`의 `getStoreConfig`/`updateStoreConfig`로 프론트도
+이미 연결돼 있다(`owner/settings` 화면의 "매장 정보" 탭이 그 API를 그대로 씀 — 읽기 전용이 아님).
+소스 대조 없이 옛 메모를 그대로 옮겨적은 게 원인으로 보인다 — 실제 공백이 아니므로 항목 삭제.
 
-## 6. 카카오 OAuth 리다이렉트 쿠키가 로컬 http 환경에서 안 될 수 있다
+## 6. 소셜 로그인(카카오/구글) 리다이렉트 쿠키가 로컬 http 환경에서 안 될 수 있다
 
 `OAuth2LoginSuccessHandler`가 굽는 refreshToken 쿠키는 `secure(true)`라 브라우저가 https가 아니면
 저장을 거부할 수 있다(브라우저마다 다름 — localhost는 종종 예외로 봐주기도 한다). 운영 배포(https)

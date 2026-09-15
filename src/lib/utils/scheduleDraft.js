@@ -12,7 +12,7 @@ import { addDays, dowIdx } from './date.js';
  * @param {object} input
  * @param {string} input.nextMonday - 초안을 만들 주의 월요일(YYYY-MM-DD)
  * @param {any} input.currentWeekSchedule - getOwnerWeeklySchedule(storeId, 이번주 월요일) 응답
- * @param {any} input.availability - getOwnerWeeklyAvailability(storeId) 응답(요일별 직원 제출 timeTypes)
+ * @param {any} input.availability - getOwnerWeeklyAvailability(storeId, true) 응답(다음주, 요일별 직원 제출 timeTypes)
  * @param {any[]} input.timeTemplates - getTemplates(storeId) 응답(시간대별 시작/종료 시각)
  * @param {any[]} input.employeeStats - getEmployeeStats(storeId, true) 응답의 content(활성 직원)
  */

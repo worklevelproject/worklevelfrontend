@@ -7,6 +7,8 @@
 	import { ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
+	import { openDrawer } from '$lib/stores/drawer.js';
+	import ReviveNoShowDrawer from '$lib/components/drawers/ReviveNoShowDrawer.svelte';
 
 	let tab = $state('today');
 	let items = $state(/** @type {any[]} */ ([]));
@@ -47,6 +49,9 @@
 			showToast(e?.message || '실패했어요');
 		}
 	}
+	function revive(a) {
+		openDrawer(ReviveNoShowDrawer, { workRequestId: a.workRequestId, date: a.workDate, onDone: load });
+	}
 </script>
 
 <svelte:head><title>출퇴근 · WORKLEVEL</title></svelte:head>
@@ -85,7 +90,12 @@
 					<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}</td>
 					<td class="num">{a.checkOut ? toHM(a.checkOutTime) : '—'}</td>
 					<td class="num">{a.checkOut ? (a.workMinutes / 60).toFixed(1) + 'h' : '—'}</td>
-					<td><span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span></td>
+					<td>
+						<span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span>
+						{#if a.status === 'NO_SHOW'}
+							<button class="btn s sm" style="margin-left:6px" onclick={() => revive(a)}>결근 복구</button>
+						{/if}
+					</td>
 				</tr>
 			{:else}
 				<tr><td colspan="6"><div class="empty">오늘 근무가 없어요</div></td></tr>
@@ -104,7 +114,12 @@
 					<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}</td>
 					<td class="num">{a.checkOut ? toHM(a.checkOutTime) : '—'}</td>
 					<td class="num">{a.checkOut ? (a.workMinutes / 60).toFixed(1) + 'h' : '—'}</td>
-					<td><span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span></td>
+					<td>
+						<span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span>
+						{#if a.status === 'NO_SHOW'}
+							<button class="btn s sm" style="margin-left:6px" onclick={() => revive(a)}>결근 복구</button>
+						{/if}
+					</td>
 				</tr>
 			{:else}
 				<tr><td colspan="7"><div class="empty">이번 주 기록이 없어요</div></td></tr>

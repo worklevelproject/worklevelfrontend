@@ -1,5 +1,5 @@
 <script>
-	import { goToKakaoLogin } from '$lib/api/auth.js';
+	import { goToKakaoLogin, goToGoogleLogin } from '$lib/api/auth.js';
 </script>
 
 <svelte:head><title>로그인 · WORKLEVEL</title></svelte:head>
@@ -13,8 +13,9 @@
 	<div class="r">
 		<div class="box">
 			<h2>로그인</h2>
-			<p class="muted">카카오 계정으로 로그인합니다</p>
+			<p class="muted">카카오 또는 구글 계정으로 로그인합니다</p>
 			<button class="kakao-btn" onclick={goToKakaoLogin}>카카오로 시작하기</button>
+			<button class="google-btn" onclick={goToGoogleLogin} style="margin-top:8px">구글로 시작하기</button>
 			<p class="tiny muted" style="margin-top:16px">
 				처음이면 카카오 로그인 후 자동으로 회원가입돼요. 매장은 다음 화면에서 만들거나 초대코드로 들어갈 수 있어요.
 			</p>

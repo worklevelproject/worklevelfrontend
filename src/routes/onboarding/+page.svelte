@@ -18,7 +18,7 @@
 		loading = true;
 		err = '';
 		try {
-			const store = await createStore({ name: name.trim(), tel: tel.trim(), pos: pos.trim() });
+			const store = await createStore({ name: name.trim(), tel: tel.trim(), address: pos.trim() });
 			await session.selectStore(store.id);
 			showToast('매장을 만들었어요');
 			await goto('/owner/today');
@@ -35,28 +35,11 @@
 		err = '';
 		try {
 			const ticket = await joinByInviteCode(inviteCode.trim());
-			// TicketResponse에는 storeId가 없어서, 방금 발급된 alias/직무만으로는 storeId를 못 얻는다.
-			// 그래서 가입 직후엔 매장 홈으로 보내는 대신 안내만 하고, storeId 입력을 한 번 더 받는다.
+			await session.selectStore(ticket.storeId);
 			showToast('가입됐어요');
-			err = '가입은 됐어요. 매장 관리자에게 매장 번호(storeId)를 확인해 아래에 입력해 주세요.';
-			needsStoreId = true;
-		} catch (e) {
-			err = e?.message || '초대코드가 올바르지 않아요';
-		} finally {
-			loading = false;
-		}
-	}
-
-	let needsStoreId = $state(false);
-	let manualStoreId = $state('');
-	async function confirmStoreId() {
-		if (!manualStoreId) return;
-		loading = true;
-		try {
-			await session.selectStore(Number(manualStoreId));
 			await goto(get(isOwner) ? '/owner/today' : '/staff/today');
 		} catch (e) {
-			err = e?.message || '매장을 찾을 수 없어요';
+			err = e?.message || '초대코드가 올바르지 않아요';
 		} finally {
 			loading = false;
 		}
@@ -83,15 +66,9 @@
 				<div class="f"><label>전화</label><input bind:value={tel} placeholder="02-000-0000" /></div>
 				<div class="f"><label>주소</label><input bind:value={pos} placeholder="서울 성동구 ..." /></div>
 				<button class="btn p w" disabled={loading} onclick={submitCreate}>매장 만들기</button>
-			{:else if !needsStoreId}
+			{:else}
 				<div class="f"><label>초대코드</label><input bind:value={inviteCode} placeholder="점주에게 받은 코드" /></div>
 				<button class="btn p w" disabled={loading} onclick={submitJoin}>참여하기</button>
-			{:else}
-				<div class="f">
-					<label for="manualStoreId">매장 번호 (storeId)</label>
-					<input id="manualStoreId" bind:value={manualStoreId} inputmode="numeric" />
-				</div>
-				<button class="btn p w" disabled={loading} onclick={confirmStoreId}>들어가기</button>
 			{/if}
 
 			{#if err}<p class="f err" style="margin-top:8px">{err}</p>{/if}

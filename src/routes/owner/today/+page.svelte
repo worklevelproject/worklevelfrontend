@@ -52,7 +52,7 @@
 				getHandOvers(storeId),
 				getStoreSalary(storeId),
 				getOwnerWeeklySchedule(storeId, nextMonday),
-				getOwnerWeeklyAvailability(storeId)
+				getOwnerWeeklyAvailability(storeId, true)
 			]);
 			items = att.filter((a) => a.workDate === T);
 			corrections = corr.content.filter((c) => !c.resolved);
@@ -79,10 +79,9 @@
 	);
 	const nextWeekWaiting = $derived(nextWeekWorkers.filter((w) => w.status === 'PENDING').length);
 
-	// 되는 시간 제출률: avail(getOwnerWeeklyAvailability 응답)이 매일 활성 직원 전원을 포함하고,
-	// 그날 제출한 timeTypes가 없으면 빈 배열로 온다 - 하루라도 제출했으면 "제출함"으로 센다.
-	// 한계: 이 API는 항상 "호출 시점 기준 이번 주"만 주므로, 다음 주 진행 중인 제출 현황을 정확히
-	// 못 볼 수 있다(docs/KNOWN_GAPS.md #2-1).
+	// 되는 시간 제출률: avail(getOwnerWeeklyAvailability(storeId, true) 응답, 다음주 범위)이 매일
+	// 활성 직원 전원을 포함하고, 그날 제출한 timeTypes가 없으면 빈 배열로 온다 - 하루라도
+	// 제출했으면 "제출함"으로 센다(백엔드 nextWeek 파라미터로 KNOWN_GAPS.md 옛 #2-1 해소).
 	const availEmployees = $derived(avail?.days?.[0]?.employees ?? []);
 	const submittedIds = $derived(
 		new Set((avail?.days ?? []).flatMap((d) => d.employees.filter((e) => e.timeTypes.length > 0).map((e) => e.ticketId)))

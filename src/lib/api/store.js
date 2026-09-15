@@ -1,7 +1,7 @@
 import { get, post, patch, del } from './client.js';
 
 // ── 인증 사용자 공통 ──────────────────────────────────────────
-export const createStore = (body) => post('/stores', body); // {name, tel, pos}
+export const createStore = (body) => post('/stores', body); // {name, tel, address}
 export const joinByInviteCode = (inviteCode) => post('/stores/join', { inviteCode });
 export const getStore = (storeId) => get(`/stores/${storeId}`);
 export const getEmployees = (storeId) => get(`/stores/${storeId}/employees`);

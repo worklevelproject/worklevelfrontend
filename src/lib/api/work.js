@@ -36,6 +36,9 @@ export const rejectAttendanceCorrection = (storeId, workRequestId) =>
 	post(`/stores/${storeId}/owner/work-requests/${workRequestId}/attendance-correction/reject`);
 export const getAttendanceCorrections = (storeId, offset = 0) =>
 	get(`/stores/${storeId}/owner/work-requests/attendance-corrections`, { offset });
+/** 결근(NO_SHOW) 확정 건을 점주가 실제 출퇴근 시각을 확정해 지각/정상 출근으로 되돌림 (checkInTime/checkOutTime 둘 다 필수, ISO datetime) */
+export const reviveNoShow = (storeId, workRequestId, body) =>
+	post(`/stores/${storeId}/owner/work-requests/${workRequestId}/no-show/revive`, body);
 export const getOwnerWeeklySchedule = (storeId, date) =>
 	get(`/stores/${storeId}/owner/works/weekly`, { date });
 export const getOwnerMonthlySchedule = (storeId, year, month) =>

@@ -26,10 +26,12 @@ npm run dev
    `http://localhost:5173`)를 이 프론트 주소와 맞춘다. 이번 작업으로 백엔드에 CORS 설정 자체를
    새로 추가했다(원래 없었음) — `application-dev.yaml`의 `cors.allowed-origins` 또는
    `CORS_ALLOWED_ORIGINS` 환경변수로 조정한다.
-2. **카카오 OAuth 리다이렉트**: 백엔드 환경변수 `OAUTH2_REDIRECT_URI`를 이 프론트의
-   `.env`에 적은 `VITE_OAUTH2_CALLBACK_URL`(기본 `http://localhost:5173/auth/callback`)과 똑같이
-   맞춘다. 카카오 개발자 콘솔의 Redirect URI도 백엔드 콜백 주소(`/login/oauth2/code/kakao`)로
-   등록돼 있어야 한다.
+2. **소셜 로그인 리다이렉트**: 백엔드 환경변수 `OAUTH2_REDIRECT_URI`(카카오/구글 공통, 로그인 성공 후
+   최종적으로 돌아올 프론트 주소)를 이 프론트의 `.env`에 적은 `VITE_OAUTH2_CALLBACK_URL`(기본
+   `http://localhost:5173/auth/callback`)과 똑같이 맞춘다. 카카오 개발자 콘솔/구글 클라우드 콘솔의
+   Redirect URI는 각각 백엔드 콜백 주소(`/login/oauth2/code/kakao`, `/login/oauth2/code/google`)로
+   등록돼 있어야 한다(백엔드 환경변수는 `KAKAO_REDIRECT_URI`/`GOOGLE_REDIRECT_URI` 및
+   `*_CLIENT_ID`/`*_CLIENT_SECRET`).
 3. **refreshToken 쿠키**: 백엔드가 `secure(true)`인 쿠키를 내려주므로(`OAuth2LoginSuccessHandler`),
    로컬에서 http로만 띄우면 브라우저가 쿠키를 저장하지 않아 새로고침 시 로그인이 풀릴 수 있다.
    운영 배포(https)에서는 문제 없다 — 로컬 개발 중 이 문제를 겪으면 `docs/KNOWN_GAPS.md`의 관련

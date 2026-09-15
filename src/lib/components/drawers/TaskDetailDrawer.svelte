@@ -1,9 +1,10 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import DrawerShell from '../DrawerShell.svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getTask, updateTask, deleteTask } from '$lib/api/task.js';
 	import { createTaskResponse } from '$lib/api/taskResponse.js';
+	import { loadProtectedImages } from '$lib/api/s3file.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -20,6 +21,9 @@
 	let recurrenceType = $state('ONE_TIME');
 	let saving = $state(false);
 	let err = $state('');
+	/** @type {Record<number, string>} s3FileId -> blob object URL */
+	let photoUrls = $state({});
+	let photoErr = $state('');
 
 	async function load() {
 		const detail = await getTask($session.storeId, taskId);
@@ -27,14 +31,26 @@
 		members = detail.members;
 		title = task.title;
 		recurrenceType = task.recurrenceType;
+		const ids = task.contentType === 'PHOTO' && task.latestResponse?.status === 'COMPLETE'
+			? task.latestResponse.response?.s3FileIds || []
+			: [];
+		if (ids.length) {
+			try {
+				Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u));
+				photoErr = '';
+				photoUrls = await loadProtectedImages(ids);
+			} catch (e) {
+				photoErr = e?.message || '사진을 불러오지 못했어요';
+			}
+		}
 	}
 	onMount(load);
+	onDestroy(() => Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u)));
 
 	function renderResponse(r, contentType) {
 		if (!r) return '';
 		if (contentType === 'MEMO') return r.memo;
 		if (contentType === 'CHECK') return r.checked ? '완료' : '미완료';
-		if (contentType === 'PHOTO') return `사진 ${(r.s3FileIds || []).length}장`;
 		return JSON.stringify(r);
 	}
 
@@ -109,7 +125,21 @@
 							<b>{task.latestResponse.alias}</b> ·
 							<span class="pill {taskResponsePillClass(task.latestResponse.status)}">{TASK_RESPONSE_STATUS[task.latestResponse.status]}</span>
 							{#if task.latestResponse.status === 'COMPLETE'}
-								<div>{renderResponse(task.latestResponse.response, task.contentType)}</div>
+								{#if task.contentType === 'PHOTO'}
+									{#if photoErr}
+										<p class="tiny err">{photoErr}</p>
+									{:else}
+										<div class="inline" style="margin-top:8px;flex-wrap:wrap">
+											{#each task.latestResponse.response?.s3FileIds || [] as id (id)}
+												{#if photoUrls[id]}
+													<img src={photoUrls[id]} alt="완료 사진" style="width:96px;height:96px;object-fit:cover;border-radius:6px" />
+												{/if}
+											{/each}
+										</div>
+									{/if}
+								{:else}
+									<div>{renderResponse(task.latestResponse.response, task.contentType)}</div>
+								{/if}
 							{/if}
 						</div>
 					{:else}

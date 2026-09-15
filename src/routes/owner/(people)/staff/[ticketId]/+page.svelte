@@ -9,6 +9,7 @@
 	import { mock } from '$lib/stores/mock.js';
 	import { deductionFor } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
+	import { fmt } from '$lib/utils/date.js';
 	import { DOCUMENT_TYPE } from '$lib/utils/labels.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -97,6 +98,7 @@
 			</div>
 		</div>
 		<div class="acts">
+			<a class="btn s" href="/owner/staff/{ticketId}/resignation">퇴사처리</a>
 			<button class="btn d" onclick={onRemove}>내보내기</button>
 			<button class="btn p" onclick={() => (editing = !editing)}>{editing ? '취소' : '정보 수정'}</button>
 		</div>
@@ -146,8 +148,8 @@
 			<div class="sec">
 				<div class="sec-h"><h3>활동 이력</h3></div>
 				<div class="rows">
-					{#each detail.activities || [] as a, i (i)}
-						<div class="row"><div class="main"><div class="t">{a.type || a.eventType || JSON.stringify(a)}</div></div></div>
+					{#each detail.activities || [] as a (a.id)}
+						<div class="row"><div class="main"><div class="t">{fmt(a.joinedAt)} 입사{a.leftAt ? ` → ${fmt(a.leftAt)} 퇴사` : ' · 재직 중'}</div></div></div>
 					{:else}
 						<div class="empty">이력이 없어요</div>
 					{/each}

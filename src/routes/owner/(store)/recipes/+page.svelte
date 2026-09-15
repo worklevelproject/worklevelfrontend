@@ -3,7 +3,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { getManualItems } from '$lib/api/manualItem.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
-	import CupIcon from '$lib/components/CupIcon.svelte';
+	import ProtectedThumb from '$lib/components/ProtectedThumb.svelte';
 
 	const PALETTE = ['#5b3a25', '#c9a27a', '#d8b98c', '#3a2417', '#7f9b5a', '#e88c6a', '#6b4a35', '#e8a0a8'];
 	const colorFor = (id) => PALETTE[id % PALETTE.length];
@@ -37,7 +37,7 @@
 		<a class="add" href="/owner/recipes/new"><b>+</b>레시피 추가<span class="tiny">사진 · 재료 · 순서</span></a>
 		{#each list.items as r (r.id)}
 			<a href={`/owner/recipes/${r.id}`}>
-				<div class="cup"><CupIcon color={colorFor(r.id)} /></div>
+				<div class="cup"><ProtectedThumb s3FileId={r.thumbnailS3FileId} color={colorFor(r.id)} /></div>
 				<div class="cap"><b>{r.content?.nameKo}</b><span>{r.content?.nameEn}</span></div>
 			</a>
 		{/each}

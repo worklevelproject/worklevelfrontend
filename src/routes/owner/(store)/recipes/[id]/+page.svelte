@@ -1,9 +1,11 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
 	import { getManualItem, createManualItem, updateManualItem, deleteManualItem } from '$lib/api/manualItem.js';
+	import { uploadFile } from '$lib/api/s3file.js';
+	import ProtectedThumb from '$lib/components/ProtectedThumb.svelte';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 
@@ -20,6 +22,12 @@
 	let err = $state('');
 	let updatedAt = $state('');
 
+	/** 이미 저장된 썸네일(PROTECTED, CDN으로 봄) */
+	let thumbnailS3FileId = $state(/** @type {number | null} */ (null));
+	/** 새로 고른 파일(저장 전엔 아직 업로드 안 함) + 로컬 미리보기 */
+	let thumbnailFile = $state(/** @type {File | null} */ (null));
+	let thumbnailPreviewUrl = $state('');
+
 	onMount(async () => {
 		if (isNew) return;
 		try {
@@ -31,10 +39,22 @@
 			ingredients = c.ingredients?.length ? c.ingredients : [{ name: '', amount: '' }];
 			steps = c.steps?.length ? c.steps : [''];
 			updatedAt = item.updatedAt;
+			thumbnailS3FileId = item.thumbnailS3FileId ?? null;
 		} finally {
 			loading = false;
 		}
 	});
+	onDestroy(() => {
+		if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+	});
+
+	function onPickThumbnail(e) {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+		thumbnailFile = file;
+		thumbnailPreviewUrl = URL.createObjectURL(file);
+	}
 
 	function addIngredient() {
 		ingredients = [...ingredients, { name: '', amount: '' }];
@@ -59,12 +79,28 @@
 		err = '';
 		const content = { nameKo: nameKo.trim(), nameEn: nameEn.trim(), precautions: precautions.trim() || '-', ingredients: cleanIng, steps: cleanSteps };
 		try {
+			// PROTECTED로 presign 업로드부터 하고(사장님과 직원만 볼 수 있는 자료 — 계약서와 같은
+			// 방식), 그 s3FileId를 manual-item 저장 요청에 실어 보낸다. 파일을 새로 안 고르면
+			// 필드 자체를 생략해서(undefined) 기존 썸네일을 그대로 둔다.
+			const newThumbId = thumbnailFile ? await uploadFile(thumbnailFile, 'PROTECTED') : undefined;
 			if (isNew) {
-				const created = await createManualItem($session.storeId, { title: nameKo.trim(), category: 'RECIPE', displayType: 'RECIPE', content });
+				const created = await createManualItem($session.storeId, {
+					title: nameKo.trim(),
+					thumbnailS3FileId: newThumbId,
+					category: 'RECIPE',
+					displayType: 'RECIPE',
+					content
+				});
 				showToast('등록했어요');
 				await goto(`/owner/recipes/${created.id}`);
 			} else {
-				await updateManualItem($session.storeId, Number(idParam), { title: nameKo.trim(), category: 'RECIPE', displayType: 'RECIPE', content });
+				await updateManualItem($session.storeId, Number(idParam), {
+					title: nameKo.trim(),
+					thumbnailS3FileId: newThumbId,
+					category: 'RECIPE',
+					displayType: 'RECIPE',
+					content
+				});
 				showToast('저장했어요');
 			}
 		} catch (e) {
@@ -101,6 +137,17 @@
 
 	<div class="cols eq">
 		<div>
+			<div class="f">
+				<label>메뉴 사진</label>
+				<div class="cup" style="width:160px;border-radius:4px">
+					{#if thumbnailPreviewUrl}
+						<img class="thumb-img" src={thumbnailPreviewUrl} alt="" />
+					{:else}
+						<ProtectedThumb s3FileId={thumbnailS3FileId} />
+					{/if}
+				</div>
+				<input type="file" accept="image/*" onchange={onPickThumbnail} style="margin-top:8px" />
+			</div>
 			<div class="f"><div class="inline">
 				<div class="f" style="margin:0"><label>메뉴 이름</label><input bind:value={nameKo} placeholder="아인슈페너" /></div>
 				<div class="f" style="margin:0"><label>영문 (선택)</label><input bind:value={nameEn} placeholder="Einspänner" /></div>
@@ -132,8 +179,4 @@
 		</div>
 	</div>
 	{#if err}<p class="f err">{err}</p>{/if}
-	<p class="tiny muted" style="margin-top:8px">
-		메뉴 사진 업로드는 아직 연결하지 않았어요 — PROTECTED 파일을 보여주는 CDN 주소가 이 저장소 설정에는 없어서, 우선 색상 아이콘으로 대체했어요.
-		<span class="mock-badge">인프라 미비</span>
-	</p>
 {/if}

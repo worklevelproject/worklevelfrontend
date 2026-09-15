@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { session } from '$lib/stores/session.js';
 	import { getManualItem } from '$lib/api/manualItem.js';
-	import CupIcon from '$lib/components/CupIcon.svelte';
+	import ProtectedThumb from '$lib/components/ProtectedThumb.svelte';
 
 	const id = Number(page.params.id);
 	let r = $state(/** @type {any} */ (null));
@@ -23,7 +23,13 @@
 	</div>
 	<div class="cols eq">
 		<div>
-			<div class="card" style="height:320px;display:flex;align-items:center;justify-content:center"><div style="width:120px;height:135px"><CupIcon /></div></div>
+			<div class="card" style="height:320px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+				{#if r.thumbnailS3FileId}
+					<div style="width:100%;height:100%"><ProtectedThumb s3FileId={r.thumbnailS3FileId} /></div>
+				{:else}
+					<div style="width:120px;height:135px"><ProtectedThumb s3FileId={null} /></div>
+				{/if}
+			</div>
 			{#if r.content.precautions}<div class="note" style="margin-top:12px"><b style="font-weight:500;color:var(--carbon)">주의</b><br />{r.content.precautions}</div>{/if}
 		</div>
 		<div>

@@ -3,6 +3,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { getMyWorkRequests, acceptWorkRequest, checkIn as apiCheckIn, checkOut as apiCheckOut, getWork } from '$lib/api/work.js';
 	import { getMyAttendanceHistory } from '$lib/api/attendance.js';
+	import { getResignationForEmployee } from '$lib/api/resignation.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { todayISO, toHM, fmt, hh } from '$lib/utils/date.js';
 	import { won } from '$lib/utils/format.js';
@@ -20,6 +21,7 @@
 	let att = $state(/** @type {Record<number, {checkIn:boolean, checkOut:boolean, checkInTime?:string, checkOutTime?:string}>} */ ({}));
 	/** @type {Record<number, 'OPEN'|'CLOSE'|'NORMAL'>} 오늘 근무의 timeType (마감 인수인계 버튼 노출용) */
 	let timeTypes = $state(/** @type {Record<number, string>} */ ({}));
+	let resignationPending = $state(false);
 
 	async function load() {
 		loading = true;
@@ -42,6 +44,14 @@
 			details.forEach((d, i) => (timeTypes[today[i].workId] = d.timeType));
 		} finally {
 			loading = false;
+		}
+		// 점주가 3단계(evaluation/send)까지 보낸 퇴사처리가 있을 때만 배너를 띄운다 - 없으면
+		// 항상 404라 실패를 조용히 무시한다.
+		try {
+			const r = await getResignationForEmployee($session.storeId);
+			resignationPending = r.status === 'EMPLOYEE_CONFIRM';
+		} catch {
+			resignationPending = false;
 		}
 	}
 	onMount(load);
@@ -143,6 +153,13 @@
 			{/if}
 		</div>
 		<div>
+			{#if resignationPending}
+				<div class="issue wait" style="margin-bottom:16px">
+					<div class="bar"></div>
+					<div class="main"><div class="t">사장님이 퇴사처리 확인을 요청했어요</div></div>
+					<a class="btn p sm" href="/staff/resignation">확인하기</a>
+				</div>
+			{/if}
 			<div class="issue info">
 				<div class="bar"></div>
 				<div class="main"><div class="t">다음 주 언제 되세요?</div></div>
