@@ -27,7 +27,7 @@ npm run dev
    새로 추가했다(원래 없었음) — `application-dev.yaml`의 `cors.allowed-origins` 또는
    `CORS_ALLOWED_ORIGINS` 환경변수로 조정한다.
 2. **소셜 로그인 리다이렉트**: 백엔드 환경변수 `OAUTH2_REDIRECT_URI`(카카오/구글 공통, 로그인 성공 후
-   최종적으로 돌아올 프론트 주소)를 이 프론트의 `.env`에 적은 `VITE_OAUTH2_CALLBACK_URL`(기본
+   최종적으로 돌아올 프론트 주소)를 이 프론트의 `.env`에 적은 `OAUTH2_CALLBACK_URL`(기본
    `http://localhost:5173/auth/callback`)과 똑같이 맞춘다. 카카오 개발자 콘솔/구글 클라우드 콘솔의
    Redirect URI는 각각 백엔드 콜백 주소(`/login/oauth2/code/kakao`, `/login/oauth2/code/google`)로
    등록돼 있어야 한다(백엔드 환경변수는 `KAKAO_REDIRECT_URI`/`GOOGLE_REDIRECT_URI` 및

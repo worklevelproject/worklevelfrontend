@@ -63,7 +63,7 @@ v8 프로토타입의 `genDraft()`는 배정 후보를 고를 때 그 직원이 
 `approved===true`, 만료(`exp`)까지 확인한다 — 백엔드 `CdnTokenSigner`가 발급하는 토큰 형태와
 정확히 대응된다(같은 서명 시크릿을 공유해야 함: 백엔드 `CDN_SIGN_SECRET` = Worker의 서명 키).
 
-`lib/api/s3file.js`에 `CDN_BASE_URL`(env `VITE_CDN_BASE_URL`)과 `loadProtectedImages(s3FileIds)`를
+`lib/api/s3file.js`에 `CDN_BASE_URL`(env `CDN_BASE_URL`)과 `loadProtectedImages(s3FileIds)`를
 추가했다 — `protected-access`로 파일별 `{key, token}`을 받은 뒤 `${CDN_BASE_URL}/${key}`를 커스텀
 헤더 `token`으로 fetch해 blob object URL로 바꿔준다(`<img src>`에 커스텀 헤더를 직접 못 걸어서
 fetch가 필요함 — 다 쓰면 `URL.revokeObjectURL`로 정리).

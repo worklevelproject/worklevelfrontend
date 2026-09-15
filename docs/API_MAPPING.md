@@ -110,5 +110,5 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 항목 | 상태 | 비고 |
 |---|---|---|
 | S3 업로드(presign) | ✅ | `lib/api/s3file.js` |
-| PROTECTED 파일 열람(CDN) | ✅ | Cloudflare Worker(env `VITE_CDN_BASE_URL`)에 커스텀 헤더 `token`으로 요청해 blob object URL로 표시. `lib/api/s3file.js`의 `loadProtectedImages` (`KNOWN_GAPS.md` 옛 #4 해소) |
+| PROTECTED 파일 열람(CDN) | ✅ | Cloudflare Worker(env `CDN_BASE_URL`)에 커스텀 헤더 `token`으로 요청해 blob object URL로 표시. `lib/api/s3file.js`의 `loadProtectedImages` (`KNOWN_GAPS.md` 옛 #4 해소) |
 | StoreAccessFilter 통합 | (내부 리팩터링) | `StoreOwnerFilter`를 `StoreAccessFilter`로 통합하고 본인 데이터 조회를 storeId+memberId 대신 ticketId 기반으로 전환한 것은 백엔드 내부 구현 변경일 뿐, URL·요청 파라미터·응답 형태·권한 범위에는 영향 없음 — 프론트 코드 변경 불필요 |

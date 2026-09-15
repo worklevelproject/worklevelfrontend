@@ -1,7 +1,7 @@
 import { get, post } from './client.js';
 
 /** PROTECTED 파일을 실제로 조회해주는 Cloudflare Worker 주소. 비어 있으면 PROTECTED 이미지를 못 띄운다. */
-export const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL || '';
+export const CDN_BASE_URL = import.meta.env.CDN_BASE_URL || '';
 
 export const createUploadPresign = (body) => post('/s3-files/presign', body); // {fileName, contentType, bucketType}
 export const createDownloadPresign = (s3FileId) => get(`/s3-files/${s3FileId}/download-presign`);
@@ -19,7 +19,7 @@ export const createProtectedAccess = (s3FileIds) => post('/s3-files/protected-ac
  */
 export async function loadProtectedImages(s3FileIds) {
 	if (!s3FileIds?.length) return {};
-	if (!CDN_BASE_URL) throw new Error('CDN 주소(VITE_CDN_BASE_URL)가 설정되지 않았어요');
+	if (!CDN_BASE_URL) throw new Error('CDN 주소(CDN_BASE_URL)가 설정되지 않았어요');
 	const accesses = await createProtectedAccess(s3FileIds);
 	const entries = await Promise.all(
 		accesses.map(async (a) => {
