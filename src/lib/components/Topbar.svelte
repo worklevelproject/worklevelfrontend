@@ -59,6 +59,9 @@
 			{/each}
 		</div>
 	</div>
+	<a class="iconbtn" aria-label="매장 전환" href="/onboarding">
+		<Icon name="switch" />
+	</a>
 	<a class="iconbtn" aria-label="설정" href={($session.jobRole === 'OWNER' ? '/owner' : '/staff') + '/settings'}>
 		<Icon name="gear" />
 	</a>

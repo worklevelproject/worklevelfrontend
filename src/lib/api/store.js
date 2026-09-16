@@ -3,6 +3,10 @@ import { get, post, patch, del } from './client.js';
 // ── 인증 사용자 공통 ──────────────────────────────────────────
 export const createStore = (body) => post('/stores', body); // {name, tel, address}
 export const joinByInviteCode = (inviteCode) => post('/stores/join', { inviteCode });
+/** 로그인 회원이 가진 매장별 활성 티켓 목록. [{ticketId, storeId, storeName, jobRole, alias}]
+ * 로그인 직후 화면 분기(없으면 온보딩/하나면 바로 진입/여러 개면 선택)와, 앱 안에서 다른
+ * 매장·역할로 전환할 때 둘 다에 쓴다. */
+export const getMyTickets = () => get('/stores/me/tickets');
 export const getStore = (storeId) => get(`/stores/${storeId}`);
 export const getEmployees = (storeId) => get(`/stores/${storeId}/employees`);
 /** 내 ticket 정보(직무/시급/근무시작일 등). jobRole==='OWNER'면 이 매장의 점주. */

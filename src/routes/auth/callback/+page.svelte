@@ -3,8 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { setAccessToken } from '$lib/api/token.js';
-	import { session, isOwner } from '$lib/stores/session.js';
-	import { get } from 'svelte/store';
+	import { resolveEntryPath } from '$lib/stores/session.js';
 
 	let error = $state('');
 
@@ -16,13 +15,7 @@
 		}
 		setAccessToken(token);
 		try {
-			await session.loadFromStorage();
-			const s = get(session);
-			if (!s.storeId) {
-				await goto('/onboarding');
-			} else {
-				await goto(get(isOwner) ? '/owner/today' : '/staff/today');
-			}
+			await goto(await resolveEntryPath());
 		} catch {
 			await goto('/onboarding');
 		}
