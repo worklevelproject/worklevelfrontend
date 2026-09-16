@@ -7,11 +7,12 @@
 	 * 그 안을 꽉 채운다(object-fit:cover).
 	 *
 	 * 업로드 직후에는 백엔드 S3FileWebhookController가 업로드 완료를 비동기로 반영하기 때문에
-	 * 첫 조회가 실패할 수 있다 — 3초 간격으로 최대 2번 재시도한다. */
+	 * 첫 조회가 실패할 수 있다 — 첫 시도부터 5초 대기 후 조회하고, 실패하면 5초 간격으로 최대
+	 * 2번 더 재시도한다. */
 	/** @type {{s3FileId?: number | null, color?: string}} */
 	let { s3FileId = null, color = '#8E8E8E' } = $props();
 
-	const RETRY_DELAY_MS = 3000;
+	const RETRY_DELAY_MS = 5000;
 	const MAX_RETRIES = 2;
 
 	let url = $state('');
@@ -28,6 +29,7 @@
 		if (id) {
 			(async () => {
 				for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+					await delay(RETRY_DELAY_MS);
 					if (cancelled) return;
 					try {
 						const m = await loadProtectedImages([id]);
@@ -40,7 +42,6 @@
 					} catch {
 						// 아래에서 재시도
 					}
-					if (attempt < MAX_RETRIES) await delay(RETRY_DELAY_MS);
 				}
 			})();
 		}
