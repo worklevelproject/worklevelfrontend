@@ -2,7 +2,7 @@
 	import DrawerShell from '../DrawerShell.svelte';
 	import { session } from '$lib/stores/session.js';
 	import { completeTaskResponse } from '$lib/api/taskResponse.js';
-	import { uploadFile } from '$lib/api/s3file.js';
+	import { uploadFile, retryAfterUpload } from '$lib/api/s3file.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { CONTENT_TYPE } from '$lib/utils/labels.js';
@@ -22,6 +22,7 @@
 		err = '';
 		try {
 			let response;
+			let justUploaded = false;
 			if (contentType === 'CHECK') {
 				response = { checked };
 			} else if (contentType === 'MEMO') {
@@ -34,8 +35,10 @@
 				for (const f of files) ids.push(await uploadFile(f, 'PROTECTED'));
 				uploading = false;
 				response = { s3FileIds: ids };
+				justUploaded = true;
 			}
-			await completeTaskResponse($session.storeId, taskId, taskResponseId, response);
+			const complete = () => completeTaskResponse($session.storeId, taskId, taskResponseId, response);
+			await (justUploaded ? retryAfterUpload(complete) : complete());
 			showToast('완료 처리했어요');
 			closeDrawer();
 			onDone?.();

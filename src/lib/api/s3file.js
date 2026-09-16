@@ -32,36 +32,33 @@ export async function loadProtectedImages(s3FileIds) {
 	return Object.fromEntries(entries);
 }
 
-const PROTECTED_RETRY_DELAY_MS = 5000;
-const PROTECTED_MAX_RETRIES = 2;
+const UPLOAD_VERIFY_RETRY_DELAY_MS = 5000;
+const UPLOAD_VERIFY_MAX_RETRIES = 2;
 
 function delay(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * loadProtectedImages를 감싸서, 업로드 직후 S3FileWebhookController의 비동기 반영 지연으로
- * 조회가 실패/누락될 수 있는 상황을 재시도로 보완한다. 매 시도(첫 시도 포함) 전에 5초씩
- * 대기하고, 요청한 id가 모두 채워지면 즉시 반환한다 — 최대 2번 더 재시도(총 3회 시도) 후에는
- * 마지막 결과를 그대로 반환한다(일부 누락 가능).
- * @param {number[]} s3FileIds
- * @param {(cancelled: () => boolean)} [isCancelled] 매 대기/시도 전에 확인해 true면 즉시 중단
- * @returns {Promise<Record<number, string>>}
+ * 업로드 직후 s3FileId를 실어 보내는 등록/저장 API 호출(계약서 등록, 레시피 manual-item
+ * 저장, 할 일 사진 답변 완료 처리 등)을 감싼다. 백엔드가 S3FileWebhookController로 업로드
+ * 완료 여부를 비동기로 반영하기 때문에, 업로드 직후 바로 이 호출들을 하면 아직 "업로드
+ * 완료"로 확인되지 않아 실패할 수 있다 — 실패하면 5초 대기 후 최대 2번 더 재시도(총 3회
+ * 시도)한다. 새로 업로드한 파일을 실어 보낼 때만 감싸야 한다(그 외 실패까지 불필요하게
+ * 재시도로 늦추지 않도록).
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
  */
-export async function loadProtectedImagesWithRetry(s3FileIds, isCancelled = () => false) {
-	if (!s3FileIds?.length) return {};
-	let result = {};
-	for (let attempt = 0; attempt <= PROTECTED_MAX_RETRIES; attempt++) {
-		await delay(PROTECTED_RETRY_DELAY_MS);
-		if (isCancelled()) return result;
+export async function retryAfterUpload(fn) {
+	for (let attempt = 0; ; attempt++) {
 		try {
-			result = await loadProtectedImages(s3FileIds);
-		} catch {
-			continue;
+			return await fn();
+		} catch (e) {
+			if (attempt >= UPLOAD_VERIFY_MAX_RETRIES) throw e;
+			await delay(UPLOAD_VERIFY_RETRY_DELAY_MS);
 		}
-		if (s3FileIds.every((id) => result[id])) return result;
 	}
-	return result;
 }
 
 /**

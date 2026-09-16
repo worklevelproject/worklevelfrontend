@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
 	import { getManualItem, createManualItem, updateManualItem, deleteManualItem } from '$lib/api/manualItem.js';
-	import { uploadFile } from '$lib/api/s3file.js';
+	import { uploadFile, retryAfterUpload } from '$lib/api/s3file.js';
 	import ProtectedThumb from '$lib/components/ProtectedThumb.svelte';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -83,24 +83,15 @@
 			// 방식), 그 s3FileId를 manual-item 저장 요청에 실어 보낸다. 파일을 새로 안 고르면
 			// 필드 자체를 생략해서(undefined) 기존 썸네일을 그대로 둔다.
 			const newThumbId = thumbnailFile ? await uploadFile(thumbnailFile, 'PROTECTED') : undefined;
+			const payload = { title: nameKo.trim(), thumbnailS3FileId: newThumbId, category: 'RECIPE', displayType: 'RECIPE', content };
 			if (isNew) {
-				const created = await createManualItem($session.storeId, {
-					title: nameKo.trim(),
-					thumbnailS3FileId: newThumbId,
-					category: 'RECIPE',
-					displayType: 'RECIPE',
-					content
-				});
+				const create = () => createManualItem($session.storeId, payload);
+				const created = await (newThumbId ? retryAfterUpload(create) : create());
 				showToast('등록했어요');
 				await goto(`/owner/recipes/${created.id}`);
 			} else {
-				await updateManualItem($session.storeId, Number(idParam), {
-					title: nameKo.trim(),
-					thumbnailS3FileId: newThumbId,
-					category: 'RECIPE',
-					displayType: 'RECIPE',
-					content
-				});
+				const update = () => updateManualItem($session.storeId, Number(idParam), payload);
+				await (newThumbId ? retryAfterUpload(update) : update());
 				showToast('저장했어요');
 			}
 		} catch (e) {

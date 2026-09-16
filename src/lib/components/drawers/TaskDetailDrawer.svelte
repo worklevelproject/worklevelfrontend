@@ -4,7 +4,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { getTask, updateTask, deleteTask } from '$lib/api/task.js';
 	import { createTaskResponse } from '$lib/api/taskResponse.js';
-	import { loadProtectedImagesWithRetry } from '$lib/api/s3file.js';
+	import { loadProtectedImages } from '$lib/api/s3file.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -24,7 +24,6 @@
 	/** @type {Record<number, string>} s3FileId -> blob object URL */
 	let photoUrls = $state({});
 	let photoErr = $state('');
-	let cancelled = false;
 
 	async function load() {
 		const detail = await getTask($session.storeId, taskId);
@@ -36,24 +35,17 @@
 			? task.latestResponse.response?.s3FileIds || []
 			: [];
 		if (ids.length) {
-			Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u));
-			photoErr = '';
 			try {
-				// 직원이 방금 올린 사진일 수 있어 웹훅 반영 지연을 감안해 재시도한다.
-				const loaded = await loadProtectedImagesWithRetry(ids, () => cancelled);
-				if (cancelled) return;
-				photoUrls = loaded;
-				if (ids.some((id) => !loaded[id])) photoErr = '사진을 불러오지 못했어요';
+				Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u));
+				photoErr = '';
+				photoUrls = await loadProtectedImages(ids);
 			} catch (e) {
-				if (!cancelled) photoErr = e?.message || '사진을 불러오지 못했어요';
+				photoErr = e?.message || '사진을 불러오지 못했어요';
 			}
 		}
 	}
 	onMount(load);
-	onDestroy(() => {
-		cancelled = true;
-		Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u));
-	});
+	onDestroy(() => Object.values(photoUrls).forEach((u) => URL.revokeObjectURL(u)));
 
 	function renderResponse(r, contentType) {
 		if (!r) return '';
