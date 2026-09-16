@@ -4,11 +4,21 @@
 
 	/** PROTECTED S3File 하나를 CDN에서 받아와 보여준다. s3FileId가 없거나 아직 불러오는 중이면
 	 * CupIcon 색상 아이콘으로 대체한다. 부모가 크기를 정하면(`.cup`, 고정 height 카드 등) 이미지가
-	 * 그 안을 꽉 채운다(object-fit:cover). */
+	 * 그 안을 꽉 채운다(object-fit:cover).
+	 *
+	 * 업로드 직후에는 백엔드 S3FileWebhookController가 업로드 완료를 비동기로 반영하기 때문에
+	 * 첫 조회가 실패할 수 있다 — 3초 간격으로 최대 2번 재시도한다. */
 	/** @type {{s3FileId?: number | null, color?: string}} */
 	let { s3FileId = null, color = '#8E8E8E' } = $props();
 
+	const RETRY_DELAY_MS = 3000;
+	const MAX_RETRIES = 2;
+
 	let url = $state('');
+
+	function delay(ms) {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
 
 	$effect(() => {
 		const id = s3FileId;
@@ -16,13 +26,23 @@
 		let localUrl = '';
 		url = '';
 		if (id) {
-			loadProtectedImages([id])
-				.then((m) => {
+			(async () => {
+				for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
 					if (cancelled) return;
-					localUrl = m[id] || '';
-					url = localUrl;
-				})
-				.catch(() => {});
+					try {
+						const m = await loadProtectedImages([id]);
+						if (cancelled) return;
+						if (m[id]) {
+							localUrl = m[id];
+							url = localUrl;
+							return;
+						}
+					} catch {
+						// 아래에서 재시도
+					}
+					if (attempt < MAX_RETRIES) await delay(RETRY_DELAY_MS);
+				}
+			})();
 		}
 		return () => {
 			cancelled = true;
