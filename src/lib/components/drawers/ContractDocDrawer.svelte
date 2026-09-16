@@ -1,7 +1,7 @@
 <script>
 	import DrawerShell from '../DrawerShell.svelte';
 	import { register } from '$lib/api/contractDocument.js';
-	import { uploadFile } from '$lib/api/s3file.js';
+	import { uploadFile, retryAfterUpload } from '$lib/api/s3file.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { DOCUMENT_TYPE } from '$lib/utils/labels.js';
@@ -24,7 +24,9 @@
 		err = '';
 		try {
 			const s3FileId = await uploadFile(file, 'PRIVATE');
-			await register(ticketId, { title: title.trim() || DOCUMENT_TYPE[documentType], documentType, issuedDate, expiryDate, s3FileId });
+			await retryAfterUpload(() =>
+				register(ticketId, { title: title.trim() || DOCUMENT_TYPE[documentType], documentType, issuedDate, expiryDate, s3FileId })
+			);
 			showToast('등록했어요');
 			closeDrawer();
 			onDone?.();

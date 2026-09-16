@@ -32,6 +32,35 @@ export async function loadProtectedImages(s3FileIds) {
 	return Object.fromEntries(entries);
 }
 
+const UPLOAD_VERIFY_RETRY_DELAY_MS = 5000;
+const UPLOAD_VERIFY_MAX_RETRIES = 2;
+
+function delay(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 업로드 직후 s3FileId를 실어 보내는 등록/저장 API 호출(계약서 등록, 레시피 manual-item
+ * 저장, 할 일 사진 답변 완료 처리 등)을 감싼다. 백엔드가 S3FileWebhookController로 업로드
+ * 완료 여부를 비동기로 반영하기 때문에, 업로드 직후 바로 이 호출들을 하면 아직 "업로드
+ * 완료"로 확인되지 않아 실패할 수 있다 — 실패하면 5초 대기 후 최대 2번 더 재시도(총 3회
+ * 시도)한다. 새로 업로드한 파일을 실어 보낼 때만 감싸야 한다(그 외 실패까지 불필요하게
+ * 재시도로 늦추지 않도록).
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function retryAfterUpload(fn) {
+	for (let attempt = 0; ; attempt++) {
+		try {
+			return await fn();
+		} catch (e) {
+			if (attempt >= UPLOAD_VERIFY_MAX_RETRIES) throw e;
+			await delay(UPLOAD_VERIFY_RETRY_DELAY_MS);
+		}
+	}
+}
+
 /**
  * presign 발급 → 그 URL로 PUT 업로드까지 한 번에 처리하는 헬퍼.
  * bucketType: 'PUBLIC' | 'PRIVATE' | 'PROTECTED'
