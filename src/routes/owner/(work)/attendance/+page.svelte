@@ -13,14 +13,18 @@
 	let tab = $state('today');
 	let items = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
+	let error = $state('');
 	const T = todayISO();
 	const corrections = createPagedList((offset) => getAttendanceCorrections($session.storeId, offset));
 
 	async function load() {
 		loading = true;
+		error = '';
 		try {
 			const [att] = await Promise.all([getAttendance($session.storeId, T), corrections.load()]);
 			items = att;
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -72,6 +76,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else if tab === 'today'}
 	<div class="stat">
 		<button><b class="num">{todays.length}</b><span>오늘 나오는 직원</span></button>

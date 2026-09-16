@@ -12,6 +12,7 @@
 
 	let tab = $state('notice');
 	let loading = $state(true);
+	let error = $state('');
 	let openId = $state(/** @type {number | null} */ (null));
 
 	const notices = createPagedList((offset) => getNotices($session.storeId, offset));
@@ -19,8 +20,11 @@
 
 	async function load() {
 		loading = true;
+		error = '';
 		try {
 			await Promise.all([notices.load(), handovers.load()]);
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -60,6 +64,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else if tab === 'notice'}
 	<div class="card w" style="max-width:820px;padding:4px 20px">
 		{#each notices.items as n (n.id)}

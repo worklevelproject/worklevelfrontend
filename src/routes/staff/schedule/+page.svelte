@@ -8,6 +8,7 @@
 
 	let weekOffset = $state(0);
 	let loading = $state(true);
+	let error = $state('');
 
 	const baseMonday = mondayOf(todayISO());
 	const monday = $derived(addDays(baseMonday, weekOffset * 7));
@@ -23,8 +24,11 @@
 
 	async function load() {
 		loading = true;
+		error = '';
 		try {
 			await works.load();
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -52,6 +56,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else}
 	<div class="week">
 		{#each ws as w (w.iso)}

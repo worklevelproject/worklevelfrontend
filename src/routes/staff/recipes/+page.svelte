@@ -9,11 +9,14 @@
 	const colorFor = (id) => PALETTE[id % PALETTE.length];
 
 	let loading = $state(true);
+	let error = $state('');
 	const list = createPagedList((offset) => getManualItems($session.storeId, 'RECIPE', offset));
 
 	onMount(async () => {
 		try {
 			await list.load();
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -26,6 +29,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else}
 	<div class="menu">
 		{#each list.items as r (r.id)}
