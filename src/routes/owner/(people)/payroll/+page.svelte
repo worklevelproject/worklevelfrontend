@@ -8,10 +8,13 @@
 
 	let list = $state(/** @type {any[]} */ ([]));
 	let loading = $state(true);
+	let error = $state('');
 
 	onMount(async () => {
 		try {
 			list = await getStoreSalary($session.storeId);
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -42,6 +45,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else}
 	<div class="tiles">
 		<div class="tile"><b class="num" style="font-size:22px">{won(total.net)}</b><span>실지급 합계 · {rows.length}명</span></div>

@@ -9,12 +9,16 @@
 	import TaskFormDrawer from '$lib/components/drawers/TaskFormDrawer.svelte';
 
 	let loading = $state(true);
+	let error = $state('');
 	const list = createPagedList((offset) => getTasks($session.storeId, offset));
 
 	async function load() {
 		loading = true;
+		error = '';
 		try {
 			await list.load();
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -41,6 +45,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else}
 	<table class="tbl">
 		<thead><tr><th>할 일</th><th>답하는 방법</th><th>반복</th><th>담당</th><th>상태</th><th></th></tr></thead>

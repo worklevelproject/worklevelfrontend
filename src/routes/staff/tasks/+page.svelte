@@ -8,6 +8,7 @@
 	import TaskAnswerDrawer from '$lib/components/drawers/TaskAnswerDrawer.svelte';
 
 	let loading = $state(true);
+	let error = $state('');
 	const tasks = createPagedList((offset) => getTasks($session.storeId, offset));
 	// 내게 배정된 것만 클라이언트에서 필터(백엔드 목록 API가 담당자 필터를 안 받음) - "더보기"는
 	// 전체 할 일 기준으로 다음 페이지를 이어 받으므로, 한 번에 안 보이던 내 할 일이 더보기 후에
@@ -16,8 +17,11 @@
 
 	async function load() {
 		loading = true;
+		error = '';
 		try {
 			await tasks.load();
+		} catch (e) {
+			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
@@ -47,6 +51,8 @@
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if error}
+	<div class="empty">{error}</div>
 {:else}
 	<table class="tbl">
 		<thead><tr><th>할 일</th><th>답하는 방법</th><th>상태</th><th></th></tr></thead>
