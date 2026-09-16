@@ -1,13 +1,8 @@
 import { get, post } from './client.js';
+import { withScheme } from '../utils/url.js';
 
-/** PROTECTED 파일을 실제로 조회해주는 Cloudflare Worker 주소. 비어 있으면 PROTECTED 이미지를 못 띄운다.
- * 환경변수에 스킴(`https://`)이 빠져 있으면 자동으로 붙인다 — 스킴 없이 `${CDN_BASE_URL}/${key}`를
- * 그대로 fetch하면 브라우저가 절대 URL이 아니라 현재 페이지 기준 상대 경로로 해석해 엉뚱한 곳으로
- * 요청이 나간다(예: `/owner/recipes/<도메인>/protected/...`처럼 깨짐). */
-const rawCdnBaseUrl = import.meta.env.CDN_BASE_URL || '';
-export const CDN_BASE_URL = rawCdnBaseUrl && !/^https?:\/\//i.test(rawCdnBaseUrl)
-	? `https://${rawCdnBaseUrl}`
-	: rawCdnBaseUrl;
+/** PROTECTED 파일을 실제로 조회해주는 Cloudflare Worker 주소. 비어 있으면 PROTECTED 이미지를 못 띄운다. */
+export const CDN_BASE_URL = withScheme(import.meta.env.CDN_BASE_URL) || '';
 
 export const createUploadPresign = (body) => post('/s3-files/presign', body); // {fileName, contentType, bucketType}
 export const createDownloadPresign = (s3FileId) => get(`/s3-files/${s3FileId}/download-presign`);
