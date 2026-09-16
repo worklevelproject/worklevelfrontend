@@ -32,6 +32,38 @@ export async function loadProtectedImages(s3FileIds) {
 	return Object.fromEntries(entries);
 }
 
+const PROTECTED_RETRY_DELAY_MS = 5000;
+const PROTECTED_MAX_RETRIES = 2;
+
+function delay(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * loadProtectedImages를 감싸서, 업로드 직후 S3FileWebhookController의 비동기 반영 지연으로
+ * 조회가 실패/누락될 수 있는 상황을 재시도로 보완한다. 매 시도(첫 시도 포함) 전에 5초씩
+ * 대기하고, 요청한 id가 모두 채워지면 즉시 반환한다 — 최대 2번 더 재시도(총 3회 시도) 후에는
+ * 마지막 결과를 그대로 반환한다(일부 누락 가능).
+ * @param {number[]} s3FileIds
+ * @param {(cancelled: () => boolean)} [isCancelled] 매 대기/시도 전에 확인해 true면 즉시 중단
+ * @returns {Promise<Record<number, string>>}
+ */
+export async function loadProtectedImagesWithRetry(s3FileIds, isCancelled = () => false) {
+	if (!s3FileIds?.length) return {};
+	let result = {};
+	for (let attempt = 0; attempt <= PROTECTED_MAX_RETRIES; attempt++) {
+		await delay(PROTECTED_RETRY_DELAY_MS);
+		if (isCancelled()) return result;
+		try {
+			result = await loadProtectedImages(s3FileIds);
+		} catch {
+			continue;
+		}
+		if (s3FileIds.every((id) => result[id])) return result;
+	}
+	return result;
+}
+
 /**
  * presign 발급 → 그 URL로 PUT 업로드까지 한 번에 처리하는 헬퍼.
  * bucketType: 'PUBLIC' | 'PRIVATE' | 'PROTECTED'
