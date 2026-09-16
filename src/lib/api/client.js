@@ -1,6 +1,7 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './token.js';
+import { withScheme } from '../utils/url.js';
 
-export const API_BASE_URL = import.meta.env.API_BASE_URL || 'http://localhost:8080';
+export const API_BASE_URL = withScheme(import.meta.env.API_BASE_URL) || 'http://localhost:8080';
 
 export class ApiError extends Error {
 	/**

@@ -1,7 +1,8 @@
 import { get, post } from './client.js';
+import { withScheme } from '../utils/url.js';
 
 /** PROTECTED 파일을 실제로 조회해주는 Cloudflare Worker 주소. 비어 있으면 PROTECTED 이미지를 못 띄운다. */
-export const CDN_BASE_URL = import.meta.env.CDN_BASE_URL || '';
+export const CDN_BASE_URL = withScheme(import.meta.env.CDN_BASE_URL) || '';
 
 export const createUploadPresign = (body) => post('/s3-files/presign', body); // {fileName, contentType, bucketType}
 export const createDownloadPresign = (s3FileId) => get(`/s3-files/${s3FileId}/download-presign`);
