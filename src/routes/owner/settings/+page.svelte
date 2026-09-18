@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { session } from '$lib/stores/session.js';
 	import { mock, resetMock } from '$lib/stores/mock.js';
 	import { getTemplates as getTimeTemplates, upsertTemplates } from '$lib/api/timeTemplate.js';
@@ -21,7 +22,11 @@
 		['data', '데이터'],
 		['account', '계정']
 	];
-	let sec = $state('store');
+	const secKeys = SEC.map(([k]) => k);
+	/** TIME_TEMPLATE 알람 클릭 시 ?sec=slots로 들어온다(alarmNav.js 참고) - 유효한 섹션 키가
+	 * 아니면 무시하고 기본값(store)으로 둔다. */
+	const initialSec = page.url.searchParams.get('sec');
+	let sec = $state(secKeys.includes(initialSec) ? initialSec : 'store');
 
 	let slots = $state(/** @type {any[]} */ ([]));
 	let timeConfig = $state(/** @type {any} */ (null));
