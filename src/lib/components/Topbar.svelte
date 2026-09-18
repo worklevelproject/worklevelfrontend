@@ -4,12 +4,18 @@
 	import { notifications, unreadCount, refreshNotifications } from '$lib/stores/notifications.js';
 	import { logout } from '$lib/api/auth.js';
 	import { session } from '$lib/stores/session.js';
+	import { openAlarm } from '$lib/utils/alarmNav.js';
 	import { goto } from '$app/navigation';
 
 	/** @type {{title: string}} */
 	let { title } = $props();
 
 	let showNotif = $state(false);
+
+	function openNotif(n) {
+		showNotif = false;
+		openAlarm(n, $session.storeId, $session.jobRole === 'OWNER');
+	}
 	let now = $state(new Date());
 	let timer;
 	onMount(() => {
@@ -48,12 +54,12 @@
 		<div class="pop" class:show={showNotif}>
 			<div class="ph"><b>알림</b></div>
 			{#each $notifications.slice(0, 6) as n (n.alarmTargetId)}
-				<div class="notif" class:read={n.readCheck}>
+				<button class="notif" class:read={n.readCheck} onclick={() => openNotif(n)}>
 					<span class="dot"></span>
 					<span class="main">
 						<div class="t">{n.title}</div>
 					</span>
-				</div>
+				</button>
 			{:else}
 				<div class="empty">알림이 없어요</div>
 			{/each}

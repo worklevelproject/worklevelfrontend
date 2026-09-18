@@ -1,0 +1,50 @@
+// 백그라운드(탭이 닫혔거나 비활성 상태)에서 도착한 FCM 푸시를 OS 알림으로 띄우고, 그 알림을
+// 클릭했을 때 앱을 열어 해당 알람으로 이동시키는 서비스워커.
+//
+// 서비스워커는 .env를 읽을 수 없어서(빌드 시 치환되는 import.meta.env가 여기선 동작하지 않음)
+// 아래 firebaseConfig를 .env의 FIREBASE_* 값과 수동으로 동일하게 맞춰야 한다 — 이 값들은
+// 서버 시크릿이 아니라 공개돼도 안전한 값(Firebase 콘솔 웹 앱 설정)이라 하드코딩해도 문제없다.
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+	apiKey: '',
+	authDomain: '',
+	projectId: '',
+	storageBucket: '',
+	messagingSenderId: '',
+	appId: ''
+});
+
+const messaging = firebase.messaging();
+
+// AlarmPushService(백엔드)는 data로 {alarmId}만 실어 보낸다 - refType/refId는 없으므로,
+// 클릭 시 그 값만으로 앱을 열고(?openAlarmId=<id>) 실제 이동은 로그인된 앱 쪽에서
+// 내 알람 목록을 조회해 알아낸다(서비스워커는 인증 토큰에 접근할 수 없어 API를 직접 못 부른다).
+messaging.onBackgroundMessage((payload) => {
+	const title = payload.notification?.title || '새 알림';
+	const body = payload.notification?.body || '';
+	const alarmId = payload.data?.alarmId;
+
+	self.registration.showNotification(title, {
+		body,
+		data: { alarmId, url: alarmId ? `/?openAlarmId=${alarmId}` : '/' }
+	});
+});
+
+self.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const url = event.notification.data?.url || '/';
+	const targetUrl = new URL(url, self.location.origin).href;
+
+	event.waitUntil(
+		self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+			const existing = clientList.find((c) => c.url.startsWith(self.location.origin));
+			if (existing) {
+				if ('navigate' in existing) existing.navigate(targetUrl);
+				return existing.focus();
+			}
+			return self.clients.openWindow(targetUrl);
+		})
+	);
+});
