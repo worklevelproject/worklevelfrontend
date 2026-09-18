@@ -1,14 +1,13 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	import { get } from 'svelte/store';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { authReady } from '$lib/stores/authReady.js';
 	import { session, isOwner } from '$lib/stores/session.js';
 	import { getAccessToken } from '$lib/api/token.js';
-	import { startPolling, stopPolling, refreshNotifications, notifications } from '$lib/stores/notifications.js';
+	import { startPolling, stopPolling } from '$lib/stores/notifications.js';
 	import { setupPushNotifications, onForegroundAlarmPush } from '$lib/firebase/messaging.js';
-	import { openAlarm } from '$lib/utils/alarmNav.js';
+	import { goToPushAlarm } from '$lib/utils/alarmNav.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { titleFor } from '$lib/utils/titles.js';
 	import Shell from './Shell.svelte';
@@ -57,22 +56,13 @@
 	}
 
 	/** 탭이 열려 있는 동안(포그라운드) 도착한 푸시는 서비스워커가 아니라 여기서 받는다 —
-	 * 클릭 가능한 토스트로 띄우고, 누르면 해당 알람으로 이동한다. 푸시 데이터엔 alarmId만
-	 * 있어서(refType/refId 없음) 내 알람 목록을 새로고침해 alarmId로 찾아 매칭한다. */
+	 * 클릭 가능한 토스트로 띄우고, 누르면 해당 알람으로 이동한다(다른 매장 것이면 그 매장으로
+	 * 전환까지 goToPushAlarm이 처리한다). */
 	let stopForegroundListener = () => {};
 	onMount(async () => {
-		stopForegroundListener = await onForegroundAlarmPush(async (payload) => {
-			const alarmId = Number(payload.data?.alarmId);
+		stopForegroundListener = await onForegroundAlarmPush((payload) => {
 			const title = payload.notification?.title || '새 알림';
-			await refreshNotifications();
-			const match = get(notifications).find((n) => n.alarmId === alarmId);
-			showToast(title, {
-				onClick: () => {
-					const targetOwner = get_isOwner();
-					if (match) openAlarm(match, get(session).storeId, targetOwner);
-					else goto(targetOwner ? '/owner/notifications' : '/staff/notifications');
-				}
-			});
+			showToast(title, { onClick: () => goToPushAlarm(payload.data || {}) });
 		});
 	});
 

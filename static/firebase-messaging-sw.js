@@ -18,18 +18,20 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// AlarmPushService(백엔드)는 data로 {alarmId}만 실어 보낸다 - refType/refId는 없으므로,
-// 클릭 시 그 값만으로 앱을 열고(?openAlarmId=<id>) 실제 이동은 로그인된 앱 쪽에서
-// 내 알람 목록을 조회해 알아낸다(서비스워커는 인증 토큰에 접근할 수 없어 API를 직접 못 부른다).
+// AlarmPushService(백엔드)는 data로 {alarmId, refType, refId?, storeId?}를 실어 보낸다
+// (refId/storeId는 브로드캐스트 알람 등에서 nullable). 클릭 시 이 값들을 그대로 쿼리스트링에
+// 실어 앱을 열고, 실제 이동(+필요하면 매장 전환)은 로그인된 앱 쪽 goToPushAlarm이 처리한다
+// (서비스워커는 인증 토큰에 접근할 수 없어 API를 직접 못 부른다).
 messaging.onBackgroundMessage((payload) => {
 	const title = payload.notification?.title || '새 알림';
 	const body = payload.notification?.body || '';
-	const alarmId = payload.data?.alarmId;
+	const { alarmId, refType, refId, storeId } = payload.data || {};
 
-	self.registration.showNotification(title, {
-		body,
-		data: { alarmId, url: alarmId ? `/?openAlarmId=${alarmId}` : '/' }
-	});
+	const url = alarmId
+		? `/?${new URLSearchParams({ openAlarmId: alarmId, ...(refType && { refType }), ...(refId && { refId }), ...(storeId && { storeId }) })}`
+		: '/';
+
+	self.registration.showNotification(title, { body, data: { url } });
 });
 
 self.addEventListener('notificationclick', (event) => {
