@@ -9,7 +9,7 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { toHM, fmt } from '$lib/utils/date.js';
 	import { won } from '$lib/utils/format.js';
-	import { WORK_TYPE, TIME_TYPE, WORK_REQUEST_STATUS, statusPillClass } from '$lib/utils/labels.js';
+	import { TIME_TYPE } from '$lib/utils/labels.js';
 
 	/** @type {{workId: number, onDone?: () => void}} */
 	let { workId, onDone } = $props();
@@ -25,7 +25,7 @@
 		const [w, emp] = await Promise.all([getWork($session.storeId, workId), getEmployees($session.storeId)]);
 		work = w;
 		employees = emp;
-		selected = (w.workRequests || []).filter((r) => r.status !== 'REJECT').map((r) => r.ticketId);
+		selected = (w.workAssignments || w.workers || []).map((r) => r.ticketId);
 	}
 	onMount(load);
 
@@ -64,14 +64,14 @@
 	}
 </script>
 
-<DrawerShell title={work ? work.title : '근무'}>
+<DrawerShell title={work ? `${TIME_TYPE[work.timeType] ?? '보통'} 근무` : '근무'}>
 	{#snippet children()}
 		{#if !work}
 			<div class="empty">불러오는 중…</div>
 		{:else}
 			<div class="kv" style="margin-top:0">
 				<div><b class="num">{toHM(work.startTime)}–{toHM(work.endTime)}</b><span>{fmt(work.startTime.slice(0, 10))}</span></div>
-				<div><b>{WORK_TYPE[work.workType]}</b><span>반복 · {work.timeType ? TIME_TYPE[work.timeType] : '시간대 없음'}</span></div>
+				<div><b>{TIME_TYPE[work.timeType] ?? '보통'}</b><span>시간대</span></div>
 			</div>
 
 			{#if work.minStaff}
@@ -88,14 +88,10 @@
 				</div>
 				{#if !editing}
 					<div class="rows">
-						{#each work.workRequests || work.workers || [] as r (r.workRequestId ?? r.ticketId)}
+						{#each work.workAssignments || work.workers || [] as r (r.workAssignmentId ?? r.ticketId)}
 							<div class="row">
 								<div class="avatar">{r.alias?.slice(1)}</div>
-								<div class="main">
-									<div class="t">{r.alias}</div>
-									{#if r.reason}<div class="s">사유: {r.reason}</div>{/if}
-								</div>
-								{#if r.status}<span class="pill {statusPillClass(r.status)}">{WORK_REQUEST_STATUS[r.status]}</span>{/if}
+								<div class="main"><div class="t">{r.alias}</div></div>
 							</div>
 						{:else}
 							<div class="empty">참여자가 없어요</div>

@@ -4,7 +4,7 @@
 	import { getOwnerWeeklySchedule } from '$lib/api/work.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM } from '$lib/utils/date.js';
-	import { WORK_REQUEST_STATUS, statusPillClass } from '$lib/utils/labels.js';
+	import { TIME_TYPE } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import ShiftDetailDrawer from '$lib/components/drawers/ShiftDetailDrawer.svelte';
 	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
@@ -75,7 +75,7 @@
 				{#each daysOf(w.iso) as work (work.workId)}
 					<button class="blk" onclick={() => openDetail(work.workId)}>
 						<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>
-						<div class="nm">{work.title}</div>
+						<div class="nm">{TIME_TYPE[work.timeType] ?? '보통'} 근무</div>
 						<div class="rs" style="color:var(--pewter)">
 							{work.workers.map((wr) => wr.alias).join(', ') || '아직 없음'}
 						</div>
@@ -86,6 +86,6 @@
 		{/each}
 	</div>
 	<p class="tiny muted" style="margin-top:16px">
-		근무를 누르면 참여자 상태를 자세히 볼 수 있어요. 직원별 매트릭스·월간 캘린더 뷰는 이번 포팅에서는 생략했어요.
+		근무를 누르면 참여자를 자세히 보고 바꿀 수 있어요. 직원별 매트릭스·월간 캘린더 뷰는 이번 포팅에서는 생략했어요.
 	</p>
 {/if}

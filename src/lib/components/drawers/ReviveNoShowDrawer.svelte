@@ -6,8 +6,8 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { fmt } from '$lib/utils/date.js';
 
-	/** @type {{workRequestId: number, date: string, onDone?: () => void}} */
-	let { workRequestId, date, onDone } = $props();
+	/** @type {{workAssignmentId: number, date: string, onDone?: () => void}} */
+	let { workAssignmentId, date, onDone } = $props();
 
 	let checkIn = $state('');
 	let checkOut = $state('');
@@ -19,7 +19,7 @@
 		saving = true;
 		err = '';
 		try {
-			await reviveNoShow($session.storeId, workRequestId, {
+			await reviveNoShow($session.storeId, workAssignmentId, {
 				checkInTime: `${date}T${checkIn}:00`,
 				checkOutTime: `${date}T${checkOut}:00`
 			});

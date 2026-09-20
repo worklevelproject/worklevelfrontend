@@ -3,7 +3,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { getWorks } from '$lib/api/work.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, dateOf } from '$lib/utils/date.js';
-	import { WORK_REQUEST_STATUS, statusPillClass } from '$lib/utils/labels.js';
+	import { TIME_TYPE } from '$lib/utils/labels.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let weekOffset = $state(0);
@@ -64,10 +64,10 @@
 			<div class="day {w.iso === today ? 'today' : ''}">
 				<div class="dh"><b>{w.n}</b><small>{w.d}{w.iso === today ? ' · 오늘' : ''}</small></div>
 				{#each worksOf(w.iso) as work (work.id)}
-					<div class="blk" style={work.myStatus ? 'outline:1.5px solid var(--carbon)' : ''}>
+					<div class="blk" style={work.assigned ? 'outline:1.5px solid var(--carbon)' : ''}>
 						<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>
-						<div class="nm">{work.title}</div>
-						{#if work.myStatus}<div class="rs" style="color:var(--blue)">{WORK_REQUEST_STATUS[work.myStatus]} (나)</div>{/if}
+						<div class="nm">{TIME_TYPE[work.timeType] ?? '보통'} 근무</div>
+						{#if work.assigned}<div class="rs" style="color:var(--blue)">내 근무</div>{/if}
 					</div>
 				{/each}
 			</div>

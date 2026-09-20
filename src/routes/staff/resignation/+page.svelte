@@ -95,7 +95,7 @@
 			<div><b class="num">{proc.workPeriodDays ?? '—'}</b><span>근무 기간(일)</span></div>
 			<div><b class="num">{proc.onTimeRate?.toFixed(0)}%</b><span>정시출근율</span></div>
 			<div><b class="num">{proc.noShowCount}</b><span>결근 횟수</span></div>
-			<div><b class="num">{(proc.acceptRate * 100)?.toFixed(0)}%</b><span>근무요청 수락률</span></div>
+			<div><b class="num">{(proc.responseRate * 100)?.toFixed(0)}%</b><span>근무 제안 응답률</span></div>
 			<div><b class="num">{(proc.taskCompletionRate * 100)?.toFixed(0)}%</b><span>할 일 완료율</span></div>
 		</div>
 		<p class="tiny muted" style="margin-top:8px">퇴사 구분: {RESIGNATION_TYPE[proc.resignationType] || '—'} · 마지막 근무일 {proc.lastWorkDate ? fmt(proc.lastWorkDate) : '—'}</p>
@@ -109,6 +109,7 @@
 			{/each}
 		</div>
 		<p class="tiny muted" style="margin-top:8px">{REHIRE_INTENT[proc.rehireIntent] || '—'}</p>
+		{#if proc.ownerComment}<p style="margin-top:8px;white-space:pre-line">{proc.ownerComment}</p>{/if}
 	</div>
 
 	{#if proc.status === 'EMPLOYEE_CONFIRM'}

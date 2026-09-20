@@ -7,7 +7,7 @@ export const getResignationForOwner = (storeId, ticketId) =>
 	get(`/stores/${storeId}/owner/employees/${ticketId}/resignation`);
 export const confirmResignationType = (storeId, ticketId, resignationType) =>
 	patch(`/stores/${storeId}/owner/employees/${ticketId}/resignation/type`, { resignationType });
-/** body: 6개 리커트 점수(0~10, 보낸 필드만 반영)?, rehireIntent? — 중간 저장용 */
+/** body: 6개 리커트 점수(0~10, 보낸 필드만 반영)?, rehireIntent?, ownerComment?(최대 500자) — 중간 저장용 */
 export const saveResignationEvaluation = (storeId, ticketId, body) =>
 	patch(`/stores/${storeId}/owner/employees/${ticketId}/resignation/evaluation`, body);
 export const sendResignationToEmployee = (storeId, ticketId) =>

@@ -39,12 +39,12 @@
 		try {
 			timeConfig = await getConfig($session.storeId);
 		} catch {
-			timeConfig = { minStaff: 1, responseDeadlineMinutes: 720, submitDeadlineDayOfWeek: 'THURSDAY' };
+			timeConfig = { minStaff: 1, responseDeadlineMinutes: 720 };
 		}
 		try {
 			storeConfig = await getStoreConfig($session.storeId);
 		} catch {
-			storeConfig = { name: $session.storeName, address: '', tel: '' };
+			storeConfig = { name: $session.storeName, address: '', tel: '', applyWeeklyHolidayAllowance: false, applyNightAllowance: false, applyHolidayAllowance: false };
 		}
 	});
 
@@ -55,7 +55,10 @@
 			storeConfig = await updateStoreConfig($session.storeId, {
 				name: storeConfig.name.trim(),
 				address: storeConfig.address?.trim() || null,
-				tel: storeConfig.tel?.trim() || null
+				tel: storeConfig.tel?.trim() || null,
+				applyWeeklyHolidayAllowance: !!storeConfig.applyWeeklyHolidayAllowance,
+				applyNightAllowance: !!storeConfig.applyNightAllowance,
+				applyHolidayAllowance: !!storeConfig.applyHolidayAllowance
 			});
 			await session.selectStore($session.storeId);
 			showToast('저장했어요');
@@ -85,7 +88,7 @@
 					return { timeType: t, startTime: s.startTime, endTime: s.endTime };
 				})
 			);
-			showToast('저장했어요 · 이 시간대로 등록된 직원 되는 시간은 초기화돼요');
+			showToast('저장했어요');
 		} catch (e) {
 			showToast(e?.message || '저장에 실패했어요');
 		} finally {
@@ -98,8 +101,7 @@
 		try {
 			timeConfig = await upsertTimeConfig($session.storeId, {
 				minStaff: Number(timeConfig.minStaff),
-				responseDeadlineMinutes: Number(timeConfig.responseDeadlineMinutes),
-				submitDeadlineDayOfWeek: timeConfig.submitDeadlineDayOfWeek
+				responseDeadlineMinutes: Number(timeConfig.responseDeadlineMinutes)
 			});
 			showToast('저장했어요');
 		} catch (e) {
@@ -126,9 +128,6 @@
 		session.clear();
 		await goto('/login');
 	}
-
-	const DOWS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-	const DOW_KO = { MONDAY: '월', TUESDAY: '화', WEDNESDAY: '수', THURSDAY: '목', FRIDAY: '금', SATURDAY: '토', SUNDAY: '일' };
 </script>
 
 <svelte:head><title>설정 · WORKLEVEL</title></svelte:head>
@@ -150,7 +149,7 @@
 			<button class="btn p" disabled={savingStore} onclick={saveStoreConfig}>저장</button>
 		{:else if sec === 'slots'}
 			<h3 style="margin-bottom:16px">근무 시간대</h3>
-			<p class="muted" style="margin-bottom:16px">시간대는 직원의 되는 시간 입력, 근무 넣기 화면에 쓰여요.</p>
+			<p class="muted" style="margin-bottom:16px">시간대는 근무 넣기와 근무표 초안 만들기 화면에 쓰여요.</p>
 			{#each ['OPEN', 'NORMAL', 'CLOSE'] as t (t)}
 				<div class="f" style="max-width:420px">
 					<label>{TIME_TYPE[t]}</label>
@@ -164,23 +163,21 @@
 		{:else if sec === 'timeconfig' && timeConfig}
 			<h3 style="margin-bottom:16px">근무 운영 설정</h3>
 			<div class="f" style="max-width:420px"><label>시간대별 최소 인원</label><input type="number" min="0" bind:value={timeConfig.minStaff} /></div>
-			<div class="f" style="max-width:420px"><label>근무 요청 답 기한 (분)</label><input type="number" min="0" bind:value={timeConfig.responseDeadlineMinutes} /></div>
-			<div class="f" style="max-width:420px">
-				<label>되는 시간 입력 마감 요일</label>
-				<div class="opts">
-					{#each DOWS as d (d)}
-						<button class={timeConfig.submitDeadlineDayOfWeek === d ? 'on' : ''} onclick={() => (timeConfig.submitDeadlineDayOfWeek = d)}>{DOW_KO[d]}</button>
-					{/each}
-				</div>
-			</div>
+			<div class="f" style="max-width:420px"><label>근무 제안 응답 기한 (분)</label><input type="number" min="0" bind:value={timeConfig.responseDeadlineMinutes} /></div>
 			<button class="btn p" disabled={savingConfig} onclick={saveTimeConfig}>저장</button>
 		{:else if sec === 'pay'}
+			<h3 style="margin-bottom:16px">수당 계산</h3>
+			{#if storeConfig}
+				<p class="muted" style="margin-bottom:8px">켠 수당만 급여 계산에 들어가요. 계산하는 시점의 설정이 그 기록에 함께 남아서, 나중에 바꿔도 이미 계산된 급여는 그대로예요.</p>
+				<div class="setrow"><div><div class="t">주휴수당</div></div><button class="toggle {storeConfig.applyWeeklyHolidayAllowance ? 'on' : ''}" onclick={() => tog(storeConfig, 'applyWeeklyHolidayAllowance')}></button></div>
+				<div class="setrow"><div><div class="t">야간수당</div></div><button class="toggle {storeConfig.applyNightAllowance ? 'on' : ''}" onclick={() => tog(storeConfig, 'applyNightAllowance')}></button></div>
+				<div class="setrow"><div><div class="t">휴일수당</div></div><button class="toggle {storeConfig.applyHolidayAllowance ? 'on' : ''}" onclick={() => tog(storeConfig, 'applyHolidayAllowance')}></button></div>
+				<button class="btn p" style="margin:12px 0 24px" disabled={savingStore} onclick={saveStoreConfig}>수당 설정 저장</button>
+			{/if}
 			<h3 style="margin-bottom:16px">급여 규칙<span class="mock-badge">목업</span></h3>
 			<div class="setrow"><div><div class="t">급여 지급일</div></div>
 				<div class="opts">{#each [5, 10, 15, 25] as d (d)}<button class={$mock.paySettings.payday === d ? 'on' : ''} onclick={() => ($mock.paySettings.payday = d)}>{d}일</button>{/each}</div>
 			</div>
-			<div class="setrow"><div><div class="t">주휴수당 자동 계산</div></div><button class="toggle {$mock.paySettings.weeklyHoliday ? 'on' : ''}" onclick={() => tog($mock.paySettings, 'weeklyHoliday')}></button></div>
-			<div class="setrow"><div><div class="t">야간수당(22~06시 ×1.5)</div></div><button class="toggle {$mock.paySettings.night ? 'on' : ''}" onclick={() => tog($mock.paySettings, 'night')}></button></div>
 			<div class="setrow"><div><div class="t">연장수당(주 40h 초과 ×1.5)</div></div><button class="toggle {$mock.paySettings.overtime ? 'on' : ''}" onclick={() => tog($mock.paySettings, 'overtime')}></button></div>
 			<div class="setrow"><div><div class="t">공제 방식</div></div>
 				<div class="opts">{#each [['3.3', '3.3%'], ['4대', '4대보험'], ['none', '없음']] as [v, l] (v)}<button class={$mock.paySettings.deduct === v ? 'on' : ''} onclick={() => ($mock.paySettings.deduct = v)}>{l}</button>{/each}</div>

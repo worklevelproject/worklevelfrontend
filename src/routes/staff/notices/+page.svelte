@@ -4,6 +4,7 @@
 	import { getNotices } from '$lib/api/notice.js';
 	import { rel, toHM } from '$lib/utils/date.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
+	import NoticeBody from '$lib/components/NoticeBody.svelte';
 
 	let loading = $state(true);
 	let error = $state('');
@@ -39,9 +40,12 @@
 		{#each notices.items as n (n.id)}
 			<div class="notice" role="button" tabindex="0" onclick={() => view(n)} onkeydown={(e) => e.key === 'Enter' && view(n)}>
 				<div class="main">
-					<div class="t">{n.title}</div>
+					<div class="t">{#if n.type === 'WORK_PROPOSAL'}<span class="pill wait">근무 제안</span> {/if}{n.title}</div>
 					<div class="s">{n.writer.alias} · {rel(n.createdAt.slice(0, 10))} {toHM(n.createdAt)}</div>
-					{#if openId === n.id}<div class="b">{n.content}</div>{/if}
+					{#if openId === n.id}
+						<div class="b">{n.content}</div>
+						<NoticeBody notice={n} canApply />
+					{/if}
 				</div>
 			</div>
 		{:else}

@@ -3,8 +3,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { getAttendance } from '$lib/api/dashboard.js';
-	import { getAttendanceCorrections, confirmAttendanceCorrection, rejectAttendanceCorrection, getStoreWorkRequests, getOwnerWeeklySchedule } from '$lib/api/work.js';
-	import { getOwnerWeeklyAvailability } from '$lib/api/availableTime.js';
+	import { getAttendanceCorrections, confirmAttendanceCorrection, rejectAttendanceCorrection, getOwnerWeeklySchedule } from '$lib/api/work.js';
 	import { getEmployeeStats } from '$lib/api/store.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { getHandOvers } from '$lib/api/handover.js';
@@ -23,13 +22,11 @@
 	let error = $state('');
 	let items = $state(/** @type {any[]} */ ([]));
 	let corrections = $state(/** @type {any[]} */ ([]));
-	let rejected = $state(/** @type {any[]} */ ([]));
 	let stats = $state(/** @type {any[]} */ ([]));
 	let notices = $state(/** @type {any[]} */ ([]));
 	let handovers = $state(/** @type {any[]} */ ([]));
 	let salary = $state(/** @type {any[]} */ ([]));
 	let nextWeek = $state(/** @type {any} */ (null));
-	let avail = $state(/** @type {any} */ (null));
 
 	const T = todayISO();
 	const nowH = () => {
@@ -43,26 +40,22 @@
 		try {
 			const storeId = $session.storeId;
 			const nextMonday = addDays(mondayOf(T), 7);
-			const [att, corr, rej, empStats, n, h, sal, nw, av] = await Promise.all([
+			const [att, corr, empStats, n, h, sal, nw] = await Promise.all([
 				getAttendance(storeId, T),
 				getAttendanceCorrections(storeId),
-				getStoreWorkRequests(storeId, 'REJECT'),
 				getEmployeeStats(storeId, true),
 				getNotices(storeId),
 				getHandOvers(storeId),
 				getStoreSalary(storeId),
-				getOwnerWeeklySchedule(storeId, nextMonday),
-				getOwnerWeeklyAvailability(storeId, true)
+				getOwnerWeeklySchedule(storeId, nextMonday)
 			]);
 			items = att.filter((a) => a.workDate === T);
 			corrections = corr.content.filter((c) => !c.resolved);
-			rejected = rej.content.filter((r) => r.workStartTime?.slice(0, 10) >= T);
 			stats = empStats.content;
 			notices = n.content;
 			handovers = h.content;
 			salary = sal;
 			nextWeek = nw;
-			avail = av;
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
@@ -71,23 +64,9 @@
 	}
 	onMount(load);
 
-	// 다음 주 근무표 상태: nextWeek(getOwnerWeeklySchedule 응답)의 워커별 수락 상태를 모아
-	// 비어있음/대기중/확정 3상태로 요약한다(신규 API 없이 기존 응답만 사용).
-	const nextWeekWorkers = $derived((nextWeek?.days ?? []).flatMap((d) => d.works.flatMap((w) => w.workers)));
-	const nextWeekState = $derived(
-		nextWeekWorkers.length === 0 ? 'empty' : nextWeekWorkers.some((w) => w.status === 'PENDING') ? 'wait' : 'confirmed'
-	);
-	const nextWeekWaiting = $derived(nextWeekWorkers.filter((w) => w.status === 'PENDING').length);
-
-	// 되는 시간 제출률: avail(getOwnerWeeklyAvailability(storeId, true) 응답, 다음주 범위)이 매일
-	// 활성 직원 전원을 포함하고, 그날 제출한 timeTypes가 없으면 빈 배열로 온다 - 하루라도
-	// 제출했으면 "제출함"으로 센다(백엔드 nextWeek 파라미터로 KNOWN_GAPS.md 옛 #2-1 해소).
-	const availEmployees = $derived(avail?.days?.[0]?.employees ?? []);
-	const submittedIds = $derived(
-		new Set((avail?.days ?? []).flatMap((d) => d.employees.filter((e) => e.timeTypes.length > 0).map((e) => e.ticketId)))
-	);
-	const subRate = $derived(availEmployees.length ? Math.round((submittedIds.size / availEmployees.length) * 100) : 100);
-	const notSubmitted = $derived(availEmployees.filter((e) => !submittedIds.has(e.ticketId)));
+	// 다음 주 근무표 상태: nextWeek(getOwnerWeeklySchedule 응답)의 근무 건수만 본다. 근무는 생성 즉시
+	// 확정이라(수락/거절 단계 삭제) "직원 답 대기" 상태는 없다.
+	const nextWeekCount = $derived((nextWeek?.days ?? []).reduce((n, d) => n + d.works.length, 0));
 
 	const isLate = (a) => a.checkIn && a.checkInTime && hh(toHM(a.checkInTime)) - hh(toHM(a.workStartTime)) > 10 / 60;
 	const planned = $derived(items);
@@ -149,7 +128,7 @@
 	</div>
 
 	<div class="cols eq" style="margin-top:12px">
-		{#if nextWeekState === 'empty'}
+		{#if nextWeekCount === 0}
 			<button class="card w" style="text-align:left" onclick={() => openDrawer(ScheduleDraftDrawer, { onDone: load })}>
 				<div class="tiny muted">다음 주 근무표</div>
 				<p style="margin-top:4px">아직 비어 있어요 · 초안 만들기</p>
@@ -157,19 +136,7 @@
 		{:else}
 			<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
 				<div class="tiny muted">다음 주 근무표</div>
-				{#if nextWeekState === 'wait'}
-					<p style="margin-top:4px">{nextWeekWaiting}개가 직원 답을 기다려요</p>
-				{:else}
-					<p style="margin-top:4px">다 확정됐어요</p>
-				{/if}
-			</a>
-		{/if}
-		{#if subRate < 100}
-			<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
-				<div class="tiny muted">되는 시간 제출률</div>
-				<p style="margin-top:4px;{subRate < 70 ? 'color:var(--bad)' : ''}">
-					아직 안 보낸 직원 {notSubmitted.length}명 · 제출률 {subRate}%
-				</p>
+				<p style="margin-top:4px">근무 {nextWeekCount}건이 배정돼 있어요</p>
 			</a>
 		{/if}
 	</div>
@@ -177,20 +144,9 @@
 	<div class="cols">
 		<div>
 			<div class="sec">
-				<div class="sec-h"><h3>오늘 챙길 것 {corrections.length + rejected.length}</h3></div>
+				<div class="sec-h"><h3>오늘 챙길 것 {corrections.length}</h3></div>
 
-				{#each rejected as r (r.workRequestId)}
-					<div class="issue bad">
-						<div class="bar"></div>
-						<div class="main">
-							<div class="t">{r.alias} · {r.workStartTime?.slice(5, 16).replace('T', ' ')} 근무를 거절했어요</div>
-							<div class="s">사유: {r.reason || '없음'} · 대신할 직원을 구해야 해요</div>
-						</div>
-						<div class="acts"><a class="btn p sm" href="/owner/shifts">근무표에서 재배정</a></div>
-					</div>
-				{/each}
-
-				{#each corrections as c (c.workRequestId)}
+				{#each corrections as c (c.workAssignmentId)}
 					<div class="issue wait">
 						<div class="bar"></div>
 						<div class="main">
@@ -202,13 +158,13 @@
 							</div>
 						</div>
 						<div class="acts">
-							<button class="btn s sm" onclick={() => onRejectCorrection(c.workRequestId)}>그대로</button>
-							<button class="btn p sm" onclick={() => onConfirmCorrection(c.workRequestId)}>고쳐주기</button>
+							<button class="btn s sm" onclick={() => onRejectCorrection(c.workAssignmentId)}>그대로</button>
+							<button class="btn p sm" onclick={() => onConfirmCorrection(c.workAssignmentId)}>고쳐주기</button>
 						</div>
 					</div>
 				{/each}
 
-				{#if !corrections.length && !rejected.length}
+				{#if !corrections.length}
 					<div class="card"><div class="empty" style="padding:16px 0">챙길 게 없어요.</div></div>
 				{/if}
 			</div>
@@ -220,7 +176,7 @@
 						<tr><th>직원</th><th>예정</th><th>실제 출근</th><th>상태</th></tr>
 					</thead>
 					<tbody>
-						{#each planned as a (a.workRequestId)}
+						{#each planned as a (a.workAssignmentId)}
 							<tr>
 								<td><div class="who"><div class="avatar">{a.alias?.slice(1)}</div><span class="t">{a.alias}</span></div></td>
 								<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
