@@ -2,18 +2,18 @@
 // 클릭했을 때 앱을 열어 해당 알람으로 이동시키는 서비스워커.
 //
 // 서비스워커는 .env를 읽을 수 없어서(빌드 시 치환되는 import.meta.env가 여기선 동작하지 않음)
-// 아래 firebaseConfig를 .env의 FIREBASE_* 값과 수동으로 동일하게 맞춰야 한다 — 이 값들은
-// 서버 시크릿이 아니라 공개돼도 안전한 값(Firebase 콘솔 웹 앱 설정)이라 하드코딩해도 문제없다.
+// 아래 firebaseConfig를 직접 채워 둔다 — 이 값들은 서버 시크릿이 아니라 공개돼도 안전한 값
+// (Firebase 콘솔 웹 앱 설정)이라 하드코딩해도 문제없다. src/lib/firebase/config.js와 같은 값이어야 한다.
 importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-	apiKey: '',
-	authDomain: '',
-	projectId: '',
-	storageBucket: '',
-	messagingSenderId: '',
-	appId: ''
+	apiKey: 'AIzaSyB7wmc9FSLs9AsiDazGZZ-m4m5I_Z3-NYM',
+	authDomain: 'worklv-642e9.firebaseapp.com',
+	projectId: 'worklv-642e9',
+	storageBucket: 'worklv-642e9.firebasestorage.app',
+	messagingSenderId: '17872629728',
+	appId: '1:17872629728:web:b47db4429627a1acbf0585'
 });
 
 const messaging = firebase.messaging();
