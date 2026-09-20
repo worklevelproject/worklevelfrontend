@@ -54,7 +54,7 @@
 		}
 	}
 	function revive(a) {
-		openDrawer(ReviveNoShowDrawer, { workRequestId: a.workRequestId, date: a.workDate, onDone: load });
+		openDrawer(ReviveNoShowDrawer, { workAssignmentId: a.workAssignmentId, date: a.workDate, onDone: load });
 	}
 </script>
 
@@ -89,7 +89,7 @@
 	<table class="tbl">
 		<thead><tr><th>직원</th><th>예정</th><th>출근</th><th>퇴근</th><th>일한 시간</th><th>상태</th></tr></thead>
 		<tbody>
-			{#each todays as a (a.workRequestId)}
+			{#each todays as a (a.workAssignmentId)}
 				<tr>
 					<td><div class="who"><div class="avatar">{a.alias?.slice(1)}</div><span class="t">{a.alias}</span></div></td>
 					<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
@@ -112,7 +112,7 @@
 	<table class="tbl">
 		<thead><tr><th>날짜</th><th>직원</th><th>예정</th><th>출근</th><th>퇴근</th><th>일한 시간</th><th>상태</th></tr></thead>
 		<tbody>
-			{#each items as a (a.workRequestId)}
+			{#each items as a (a.workAssignmentId)}
 				<tr>
 					<td class="num">{fmtS(a.workDate)}</td>
 					<td><div class="who"><div class="avatar" style="width:28px;height:28px;font-size:11px">{a.alias?.slice(1)}</div>{a.alias}</div></td>
@@ -134,7 +134,7 @@
 	</table>
 {:else}
 	<div class="rows" style="max-width:760px">
-		{#each corrections.items as c (c.workRequestId)}
+		{#each corrections.items as c (c.workAssignmentId)}
 			<div class="row">
 				<div class="avatar">{c.alias?.slice(1)}</div>
 				<div class="main">
@@ -149,8 +149,8 @@
 				</div>
 				<div class="right">
 					{#if !c.resolved}
-						<button class="btn s sm" onclick={() => reject(c.workRequestId)}>그대로</button>
-						<button class="btn p sm" onclick={() => confirm(c.workRequestId)}>고쳐주기</button>
+						<button class="btn s sm" onclick={() => reject(c.workAssignmentId)}>그대로</button>
+						<button class="btn p sm" onclick={() => confirm(c.workAssignmentId)}>고쳐주기</button>
 					{:else}
 						<span class="pill off">처리됨</span>
 					{/if}

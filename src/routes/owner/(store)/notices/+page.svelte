@@ -9,6 +9,7 @@
 	import { rel, toHM } from '$lib/utils/date.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import NoticeDrawer from '$lib/components/drawers/NoticeDrawer.svelte';
+	import NoticeBody from '$lib/components/NoticeBody.svelte';
 
 	let tab = $state('notice');
 	let loading = $state(true);
@@ -71,9 +72,12 @@
 		{#each notices.items as n (n.id)}
 			<div class="notice" role="button" tabindex="0" onclick={() => (openId = openId === n.id ? null : n.id)} onkeydown={(e) => e.key === 'Enter' && (openId = openId === n.id ? null : n.id)}>
 				<div class="main">
-					<div class="t">{n.title}</div>
+					<div class="t">{#if n.type === 'WORK_PROPOSAL'}<span class="pill wait">근무 제안</span> {/if}{n.title}</div>
 					<div class="s">{n.writer.alias} · {rel(n.createdAt.slice(0, 10))} {toHM(n.createdAt)}</div>
-					{#if openId === n.id}<div class="b">{n.content}</div>{/if}
+					{#if openId === n.id}
+						<div class="b">{n.content}</div>
+						<NoticeBody notice={n} />
+					{/if}
 				</div>
 				<button class="btn s sm" onclick={(e) => { e.stopPropagation(); edit(n); }}>수정</button>
 				<button class="btn d sm" onclick={(e) => { e.stopPropagation(); onDelete(n.id); }}>삭제</button>

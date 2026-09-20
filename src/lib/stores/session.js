@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { getStore, getMyProfile, getMyTickets } from '../api/store.js';
+import { getActing, setActing } from '../api/acting.js';
 
 const STORAGE_KEY = 'worklevel_store_id';
 
@@ -10,13 +11,16 @@ function createSessionStore() {
 		storeName: '',
 		ticketId: /** @type {number | null} */ (null),
 		alias: '',
-		jobRole: /** @type {'OWNER' | 'MANAGER' | 'STAFF' | null} */ (null)
+		jobRole: /** @type {'OWNER' | 'MANAGER' | 'STAFF' | null} */ (null),
+		// 점주가 테스트 멤버로 대리 접근 중이면 그 멤버의 alias(아니면 null). 이때 ticketId/alias/jobRole은
+		// 테스트 멤버 것(STAFF)이라 직원 화면이 그대로 동작한다 - 점주 본인 값은 exitActing()이 복원한다.
+		acting: /** @type {string | null} */ (null)
 	});
 
 	async function loadFromStorage() {
 		const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
 		if (!saved) {
-			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null });
+			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
 			return;
 		}
 		await selectStore(Number(saved));
@@ -24,8 +28,18 @@ function createSessionStore() {
 
 	/** 매장을 고르거나(가입/생성 직후) 새로고침 시 다시 불러올 때 사용 */
 	async function selectStore(storeId) {
+		// 다른 매장으로 들어가면 이전 매장의 대리 접근은 끊는다(헤더는 그 매장 경로에만 붙지만 화면 상태도 맞춘다)
+		if (getActing() && getActing()?.storeId !== storeId) setActing(null);
 		try {
-			const [store, me] = await Promise.all([getStore(storeId), getMyProfile(storeId)]);
+			let store, me;
+			try {
+				[store, me] = await Promise.all([getStore(storeId), getMyProfile(storeId)]);
+			} catch (e) {
+				// 저장돼 있던 테스트 멤버가 사라졌거나 점주가 아니게 된 경우 - 대리 접근을 풀고 본인으로 재시도
+				if (!getActing()) throw e;
+				setActing(null);
+				[store, me] = await Promise.all([getStore(storeId), getMyProfile(storeId)]);
+			}
 			if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, String(storeId));
 			set({
 				ready: true,
@@ -33,21 +47,45 @@ function createSessionStore() {
 				storeName: store.name,
 				ticketId: me.ticketId,
 				alias: me.alias,
-				jobRole: me.jobRole ?? null
+				jobRole: me.jobRole ?? null,
+				acting: getActing() ? me.alias : null
 			});
 		} catch (e) {
 			if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
-			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null });
+			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
 			throw e;
 		}
 	}
 
-	function clear() {
-		if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
-		set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null });
+	/** 점주가 같은 매장의 테스트 멤버로 대리 접근을 시작한다(이후 /owner 밖의 모든 요청이 그 멤버로 처리됨) */
+	async function enterActing(/** @type {{ticketId: number, alias: string}} */ member) {
+		const storeId = /** @type {number} */ (getStoreId());
+		setActing({ storeId, ticketId: member.ticketId, alias: member.alias });
+		await selectStore(storeId);
+		// selectStore는 대리 접근 프로필 조회가 실패하면 본인으로 되돌려 재시도하므로, 여기서 풀려 있으면 실패다
+		if (!getActing()) throw new Error('테스트 멤버로 들어갈 수 없어요');
 	}
 
-	return { subscribe, loadFromStorage, selectStore, clear, update };
+	/** 대리 접근을 끝내고 점주 본인으로 돌아간다 */
+	async function exitActing() {
+		const storeId = getStoreId();
+		setActing(null);
+		if (storeId) await selectStore(storeId);
+	}
+
+	function getStoreId() {
+		let id = null;
+		subscribe((v) => (id = v.storeId))();
+		return id;
+	}
+
+	function clear() {
+		setActing(null);
+		if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+		set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
+	}
+
+	return { subscribe, loadFromStorage, selectStore, enterActing, exitActing, clear, update };
 }
 
 export const session = createSessionStore();
@@ -59,7 +97,7 @@ export const isOwner = derived(session, ($s) => $s.jobRole === 'OWNER');
 
 /**
  * 로그인 직후(또는 "매장 전환" 진입) 어디로 보낼지 GET /stores/me/tickets 개수로 정한다.
- * 티켓이 없으면 온보딩(매장 생성/초대코드 참여), 하나뿐이면 그 매장으로 바로 들어가고, 여러
+ * 티켓이 없으면 온보딩(매장 생성), 하나뿐이면 그 매장으로 바로 들어가고, 여러
  * 개면 온보딩 화면이 그 목록을 보여주며 고르게 한다(하나만 있을 때만 여기서 selectStore까지
  * 처리 — 여러 개일 땐 어느 걸 고를지 이 함수가 알 수 없으므로 온보딩 화면에 맡긴다).
  * @returns {Promise<string>} goto할 경로

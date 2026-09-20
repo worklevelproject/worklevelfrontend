@@ -45,7 +45,8 @@
 			mistakeScore: proc.mistakeScore,
 			complaintScore: proc.complaintScore,
 			teamworkScore: proc.teamworkScore,
-			rehireIntent: proc.rehireIntent
+			rehireIntent: proc.rehireIntent,
+			ownerComment: proc.ownerComment ?? ''
 		};
 	}
 
@@ -156,7 +157,7 @@
 			<div><b class="num">{proc.workPeriodDays ?? '—'}</b><span>근무 기간(일)</span></div>
 			<div><b class="num">{proc.onTimeRate?.toFixed(0)}%</b><span>정시출근율</span></div>
 			<div><b class="num">{proc.noShowCount}</b><span>결근 횟수</span></div>
-			<div><b class="num">{(proc.acceptRate * 100)?.toFixed(0)}%</b><span>근무요청 수락률</span></div>
+			<div><b class="num">{(proc.responseRate * 100)?.toFixed(0)}%</b><span>근무 제안 응답률</span></div>
 			<div><b class="num">{(proc.taskCompletionRate * 100)?.toFixed(0)}%</b><span>할 일 완료율</span></div>
 		</div>
 		<p class="tiny muted" style="margin-top:8px">마지막 근무일 {proc.lastWorkDate ? fmt(proc.lastWorkDate) : '—'} · 시작 시점에 고정된 값이라 이후 근무해도 바뀌지 않아요</p>
@@ -202,6 +203,10 @@
 					{/each}
 				</div>
 			</div>
+			<div class="f">
+				<label>한마디 (선택, 최대 500자)</label>
+				<textarea rows="3" maxlength="500" disabled={busy} bind:value={evalForm.ownerComment} placeholder="직원에게 전하고 싶은 말이나 평가 이유"></textarea>
+			</div>
 			{#if err}<p class="f err">{err}</p>{/if}
 			<div class="inline" style="margin-top:12px">
 				<button class="btn s" disabled={busy} onclick={saveDraft}>임시저장</button>
@@ -218,6 +223,7 @@
 				{/each}
 			</div>
 			<p class="tiny muted" style="margin-top:8px">{REHIRE_INTENT[proc.rehireIntent] || '—'}</p>
+			{#if proc.ownerComment}<p style="margin-top:8px;white-space:pre-line">{proc.ownerComment}</p>{/if}
 		</div>
 		{#if proc.status === 'EMPLOYEE_CONFIRM'}
 			<div class="issue wait">

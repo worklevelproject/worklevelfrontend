@@ -3,7 +3,6 @@
 	import DrawerShell from '../DrawerShell.svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getOwnerWeeklySchedule, createWorks } from '$lib/api/work.js';
-	import { getOwnerWeeklyAvailability } from '$lib/api/availableTime.js';
 	import { getTemplates } from '$lib/api/timeTemplate.js';
 	import { getEmployeeStats } from '$lib/api/store.js';
 	import { closeDrawer, openDrawer } from '$lib/stores/drawer.js';
@@ -28,14 +27,13 @@
 	onMount(async () => {
 		try {
 			const storeId = $session.storeId;
-			const [currentWeekSchedule, availability, timeTemplates, empStats] = await Promise.all([
+			const [currentWeekSchedule, timeTemplates, empStats] = await Promise.all([
 				getOwnerWeeklySchedule(storeId, mondayOf(todayISO())),
-				getOwnerWeeklyAvailability(storeId, true),
 				getTemplates(storeId),
 				getEmployeeStats(storeId, true)
 			]);
 			employees = empStats.content;
-			const draft = buildScheduleDraft({ nextMonday, currentWeekSchedule, availability, timeTemplates, employeeStats: employees });
+			const draft = buildScheduleDraft({ nextMonday, currentWeekSchedule, timeTemplates, employeeStats: employees });
 			items = draft.items;
 			gaps = draft.gaps;
 			risks = draft.risks;
@@ -64,7 +62,7 @@
 		err = '';
 		try {
 			await createWorks($session.storeId, draftItemsToCreateWorksRequests(items));
-			showToast(`${items.length}건을 근무표에 넣었어요 · 직원 답 기다리는 중`);
+			showToast(`${items.length}건을 근무표에 넣었어요 · 직원에게 바로 배정됐어요`);
 			closeDrawer();
 			onDone?.();
 		} catch (e) {
@@ -78,10 +76,10 @@
 <DrawerShell title="다음 주 근무표 초안">
 	{#snippet children()}
 		{#if loading}
-			<div class="empty">이번 주 근무·다음 주 되는 시간을 보고 초안을 만드는 중…</div>
+			<div class="empty">이번 주 근무를 보고 초안을 만드는 중…</div>
 		{:else}
 			<p class="tiny muted">
-				이번 주 근무표를 뼈대로, 되는 시간·이번 초안 안 누적시간·정시출근율을 보고 배정해봤어요. 완성본이 아니라 초안이에요 - 확인하고 고친 뒤 반영해주세요.
+				이번 주 근무표를 뼈대로, 이번 초안 안 누적시간·정시출근율을 보고 배정해봤어요. 완성본이 아니라 초안이에요 - 확인하고 고친 뒤 반영해주세요.
 			</p>
 			{#if risks.length}
 				<div class="f">
@@ -96,7 +94,7 @@
 				{#each items as it, i (i)}
 					<div class="row">
 						<div class="main">
-							<div class="t">{fmtS(it.date)} {it.startTime}–{it.endTime} · {it.title}</div>
+							<div class="t">{fmtS(it.date)} {it.startTime}–{it.endTime} · {it.label}</div>
 							<div class="s">{it.reason}</div>
 						</div>
 						<select value={it.ticketId} onchange={(e) => swap(i, e.currentTarget.value)}>
@@ -116,7 +114,7 @@
 					{#each gaps as g, i (i)}
 						<div class="row">
 							<div class="main">
-								<div class="t">{fmtS(g.date)} {g.startTime}–{g.endTime} · {g.title}</div>
+								<div class="t">{fmtS(g.date)} {g.startTime}–{g.endTime} · {g.label}</div>
 								<div class="s">{g.reason}</div>
 							</div>
 							<button class="btn s sm" onclick={() => fillGap(g)}>직접 채우기</button>

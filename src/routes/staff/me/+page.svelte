@@ -38,7 +38,7 @@
 	}
 
 	function correctFor(a) {
-		openDrawer(CorrectionDrawer, { workRequestId: a.workRequestId, date: a.workDate, onDone: load });
+		openDrawer(CorrectionDrawer, { workAssignmentId: a.workAssignmentId, date: a.workDate, onDone: load });
 	}
 </script>
 
@@ -67,7 +67,7 @@
 				<table class="tbl">
 					<thead><tr><th>날짜</th><th>예정</th><th>실제 출퇴근</th><th>상태</th><th></th></tr></thead>
 					<tbody>
-						{#each history.items as a (a.workRequestId)}
+						{#each history.items as a (a.workAssignmentId)}
 							<tr>
 								<td class="t">{fmt(a.workDate)}</td>
 								<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>

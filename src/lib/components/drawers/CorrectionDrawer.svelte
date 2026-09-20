@@ -6,8 +6,8 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { fmt } from '$lib/utils/date.js';
 
-	/** @type {{workRequestId: number, date: string, onDone?: () => void}} */
-	let { workRequestId, date, onDone } = $props();
+	/** @type {{workAssignmentId: number, date: string, onDone?: () => void}} */
+	let { workAssignmentId, date, onDone } = $props();
 
 	let checkIn = $state('');
 	let checkOut = $state('');
@@ -20,7 +20,7 @@
 		saving = true;
 		err = '';
 		try {
-			await proposeAttendanceCorrection($session.storeId, workRequestId, {
+			await proposeAttendanceCorrection($session.storeId, workAssignmentId, {
 				checkInTime: checkIn ? `${date}T${checkIn}:00` : null,
 				checkOutTime: checkOut ? `${date}T${checkOut}:00` : null,
 				reason

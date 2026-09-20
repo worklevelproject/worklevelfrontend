@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte';
 	import { session } from '$lib/stores/session.js';
 	import { unreadCount } from '$lib/stores/notifications.js';
+	import ViewSwitcher from './ViewSwitcher.svelte';
 
 	/** @type {{owner: boolean}} */
 	let { owner } = $props();
@@ -42,7 +43,6 @@
 			[
 				['/staff/today', '오늘', 'home'],
 				['/staff/schedule', '근무표', 'cal'],
-				['/staff/avail', '다음 주 되는 시간', 'clock'],
 				['/staff/tasks', '할 일', 'check'],
 				['/staff/pay', '내 급여', 'won']
 			]
@@ -71,6 +71,7 @@
 			<span>{owner ? '점주' : $session.alias}</span>
 		</span>
 	</button>
+	<ViewSwitcher />
 	{#each groups as [g, items] (g)}
 		<div class="grp">{g}</div>
 		<nav class="nav">

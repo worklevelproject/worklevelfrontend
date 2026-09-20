@@ -1,4 +1,5 @@
 import { addDays, dowIdx } from './date.js';
+import { TIME_TYPE } from './labels.js';
 
 /**
  * v8 프로토타입(worlvprototypenewvesionsrc/web4-s8.js)의 genDraft()를 실제 백엔드 응답 위에서
@@ -7,18 +8,17 @@ import { addDays, dowIdx } from './date.js';
  * 안(案)일 뿐이다 - 사람이 드롭/교체/공백채우기로 고친 다음 확정한다.
  *
  * 프로토타입의 휴가(leave) 차단 필터는 백엔드에 휴가 도메인이 없어 뺐다(docs/KNOWN_GAPS.md #2-2).
+ * 직원 "되는 시간" 제출 API도 백엔드에서 삭제돼(#4be1f33) 그 제출 여부·선호 시간대는 더 반영하지 않는다.
  * 한 슬롯에 한 명만 배정한다(minCover 여러 명 동시 배정은 이번 포팅 범위 밖).
  *
  * @param {object} input
  * @param {string} input.nextMonday - 초안을 만들 주의 월요일(YYYY-MM-DD)
  * @param {any} input.currentWeekSchedule - getOwnerWeeklySchedule(storeId, 이번주 월요일) 응답
- * @param {any} input.availability - getOwnerWeeklyAvailability(storeId, true) 응답(다음주, 요일별 직원 제출 timeTypes)
  * @param {any[]} input.timeTemplates - getTemplates(storeId) 응답(시간대별 시작/종료 시각)
  * @param {any[]} input.employeeStats - getEmployeeStats(storeId, true) 응답의 content(활성 직원)
  */
-export function buildScheduleDraft({ nextMonday, currentWeekSchedule, availability, timeTemplates, employeeStats }) {
+export function buildScheduleDraft({ nextMonday, currentWeekSchedule, timeTemplates, employeeStats }) {
 	const skeleton = buildSkeleton(currentWeekSchedule, timeTemplates);
-	const availByDow = indexAvailabilityByDow(availability);
 	const activeEmployees = employeeStats.filter((e) => e.active !== false);
 
 	/** @type {Record<number, number>} 이 초안 안에서 직원별 누적 배정 분(0에서 시작) */
@@ -35,14 +35,13 @@ export function buildScheduleDraft({ nextMonday, currentWeekSchedule, availabili
 		const date = addDays(nextMonday, slot.dow);
 		const durationMin = minutesBetween(slot.startTime, slot.endTime);
 		const candidates = rankCandidates(slot, date, activeEmployees, {
-			availByDow,
 			assignedMinutes,
 			assignedDates,
 			busyByDate
 		});
 
 		if (candidates.length === 0) {
-			gaps.push({ date, dow: slot.dow, startTime: slot.startTime, endTime: slot.endTime, title: slot.title, reason: gapReason(slot, date, activeEmployees, busyByDate) });
+			gaps.push({ date, dow: slot.dow, startTime: slot.startTime, endTime: slot.endTime, label: slot.label, reason: gapReason(slot, date, activeEmployees, busyByDate) });
 			continue;
 		}
 
@@ -53,7 +52,7 @@ export function buildScheduleDraft({ nextMonday, currentWeekSchedule, availabili
 			alias: picked.alias,
 			startTime: slot.startTime,
 			endTime: slot.endTime,
-			title: slot.title,
+			label: slot.label,
 			timeType: slot.timeType,
 			reason: picked.reason
 		});
@@ -78,9 +77,9 @@ function buildSkeleton(currentWeekSchedule, timeTemplates) {
 			dow: dowIdx(d.date),
 			startTime: w.startTime.slice(11, 16),
 			endTime: w.endTime.slice(11, 16),
-			title: w.title,
-			priorTicketIds: w.workers.filter((p) => p.status === 'ACCEPT').map((p) => p.ticketId),
-			timeType: null
+			label: `${TIME_TYPE[w.timeType] ?? '보통'} 근무`,
+			priorTicketIds: w.workers.map((p) => p.ticketId),
+			timeType: w.timeType ?? null
 		}))
 	);
 	if (fromHistory.length > 0) return fromHistory;
@@ -90,29 +89,20 @@ function buildSkeleton(currentWeekSchedule, timeTemplates) {
 			dow,
 			startTime: t.startTime.slice(0, 5),
 			endTime: t.endTime.slice(0, 5),
-			title: `${t.timeType} 근무`,
+			label: `${TIME_TYPE[t.timeType] ?? t.timeType} 근무`,
 			priorTicketIds: [],
 			timeType: t.timeType
 		}))
 	);
 }
 
-/** OwnerAvailableTimeWeeklyResponse.days(요일 7개, 월~일)를 dow(0=월)로 바로 찾게 map. */
-function indexAvailabilityByDow(availability) {
-	return (availability?.days ?? []).map((d) => d.employees);
-}
-
 function rankCandidates(slot, date, employees, ctx) {
 	const busyToday = ctx.busyByDate[date] ?? new Set();
-	const dayAvail = ctx.availByDow[slot.dow] ?? [];
 
 	return employees
 		.filter((e) => !busyToday.has(e.ticketId))
 		.filter((e) => (ctx.assignedMinutes[e.ticketId] || 0) + minutesBetween(slot.startTime, slot.endTime) <= 40 * 60)
 		.map((e) => {
-			const avail = dayAvail.find((a) => a.ticketId === e.ticketId);
-			const submitted = !!avail && avail.timeTypes.length > 0;
-			const prefMatch = !!avail && slot.timeType && avail.timeTypes.includes(slot.timeType);
 			const wasHere = slot.priorTicketIds.includes(e.ticketId);
 			return {
 				ticketId: e.ticketId,
@@ -120,25 +110,19 @@ function rankCandidates(slot, date, employees, ctx) {
 				onTimeRate: e.onTimeRate ?? 0,
 				minutes: ctx.assignedMinutes[e.ticketId] || 0,
 				wasHere,
-				submitted,
-				prefMatch,
-				reason: draftReason({ wasHere, submitted, prefMatch, minutes: ctx.assignedMinutes[e.ticketId] || 0 })
+				reason: draftReason({ wasHere, minutes: ctx.assignedMinutes[e.ticketId] || 0 })
 			};
 		})
 		.sort((a, b) => {
 			if (a.wasHere !== b.wasHere) return a.wasHere ? -1 : 1;
-			if (a.submitted !== b.submitted) return a.submitted ? -1 : 1;
-			if (a.prefMatch !== b.prefMatch) return a.prefMatch ? -1 : 1;
 			if (a.minutes !== b.minutes) return a.minutes - b.minutes;
 			return b.onTimeRate - a.onTimeRate;
 		});
 }
 
-function draftReason({ wasHere, submitted, prefMatch, minutes }) {
+function draftReason({ wasHere, minutes }) {
 	const bits = [];
 	if (wasHere) bits.push('지난주에도 이 시간 담당');
-	if (prefMatch) bits.push("이 시간대 '돼요'");
-	else if (submitted) bits.push('다음 주 가능시간 제출함');
 	bits.push(`다음 주 누적 ${(minutes / 60).toFixed(1)}h`);
 	return bits.join(' · ');
 }
@@ -170,11 +154,7 @@ function minutesBetween(hhmmStart, hhmmEnd) {
 /** confirmDraft: 초안 항목들을 owner/works 배치 생성 요청 모양으로 바꾼다(그대로 createWorks에 전달). */
 export function draftItemsToCreateWorksRequests(items) {
 	return items.map((it) => ({
-		workType: 'NORMAL',
-		timeType: it.timeType || null,
-		title: it.title,
-		contentType: 'CHECK',
-		content: { items: [] },
+		timeType: it.timeType || 'NORMAL',
 		startTime: `${it.date}T${it.startTime}:00`,
 		endTime: `${it.date}T${it.endTime}:00`,
 		participantTicketIds: [it.ticketId]
