@@ -43,10 +43,14 @@
 		{#if sec === 'account'}
 			<h3 style="margin-bottom:16px">계정</h3>
 			<div class="setrow"><div><div class="t">로그아웃</div></div><button class="btn o sm" onclick={doLogout}>로그아웃</button></div>
-			<div class="setrow"><div><div class="t">계정 탈퇴</div></div><button class="btn d sm" onclick={onWithdraw}>탈퇴</button></div>
+			{#if $session.acting}
+				<div class="note">테스트 멤버로 보는 중이라 계정 탈퇴는 숨겼어요. 탈퇴는 점주 본인 계정에만 적용돼요.</div>
+			{:else}
+				<div class="setrow"><div><div class="t">계정 탈퇴</div></div><button class="btn d sm" onclick={onWithdraw}>탈퇴</button></div>
+			{/if}
 		{:else if sec === 'notif'}
 			<h3 style="margin-bottom:16px">알림<span class="mock-badge">목업</span></h3>
-			{#each [['shiftReply', '근무 요청'], ['taskDone', '새 할 일'], ['recipeSeen', '레시피 바뀜'], ['docExpiry', '서류 만료'], ['dailySummary', '되는 시간 마감 알림']] as [k, l] (k)}
+			{#each [['shiftReply', '새 근무 배정'], ['taskDone', '새 할 일'], ['recipeSeen', '레시피 바뀜'], ['docExpiry', '서류 만료']] as [k, l] (k)}
 				<div class="setrow"><div><div class="t">{l}</div></div><button class="toggle {$mock.notifSettings[k] ? 'on' : ''}" onclick={() => tog($mock.notifSettings, k)}></button></div>
 			{/each}
 		{:else if sec === 'privacy'}

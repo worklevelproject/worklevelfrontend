@@ -7,6 +7,7 @@
 	import { getAccessToken } from '$lib/api/token.js';
 	import { startPolling, stopPolling } from '$lib/stores/notifications.js';
 	import { titleFor } from '$lib/utils/titles.js';
+	import { counterpartPath } from '$lib/utils/viewMap.js';
 	import Shell from './Shell.svelte';
 
 	/** @type {{owner: boolean, children?: import('svelte').Snippet}} */
@@ -37,7 +38,8 @@
 		}
 		const actuallyOwner = get_isOwner();
 		if (owner !== actuallyOwner) {
-			await goto(actuallyOwner ? '/owner/today' : '/staff/today');
+			// 점주↔테스트 멤버 전환으로 역할이 바뀐 경우 같은 종류의 화면으로 보낸다
+			await goto(counterpartPath(page.url.pathname, actuallyOwner ? 'owner' : 'staff'));
 			return;
 		}
 		checked = true;
@@ -58,6 +60,9 @@
 
 {#if checked}
 	<Shell {owner} {title}>
-		{@render children?.()}
+		<!-- 보는 사람(테스트 멤버)이 바뀌면 화면을 새로 마운트해 그 사람 기준으로 다시 불러온다 -->
+		{#key $session.ticketId}
+			{@render children?.()}
+		{/key}
 	</Shell>
 {/if}

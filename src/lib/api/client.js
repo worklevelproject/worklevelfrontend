@@ -1,5 +1,6 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './token.js';
 import { withScheme } from '../utils/url.js';
+import { actingHeaderFor } from './acting.js';
 
 export const API_BASE_URL = withScheme(import.meta.env.API_BASE_URL) || 'http://localhost:8080';
 
@@ -68,6 +69,8 @@ export async function apiFetch(path, opts = {}) {
 	const token = getAccessToken();
 	if (token) headers['Authorization'] = `Bearer ${token}`;
 	if (body !== undefined) headers['Content-Type'] = 'application/json';
+	const acting = actingHeaderFor(path);
+	if (acting) headers['X-Acting-Ticket-Id'] = acting;
 
 	const res = await fetch(url, {
 		method,
