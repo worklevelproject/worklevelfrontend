@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { session } from '$lib/stores/session.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { rel, toHM } from '$lib/utils/date.js';
@@ -8,7 +9,9 @@
 
 	let loading = $state(true);
 	let error = $state('');
-	let openId = $state(/** @type {number | null} */ (null));
+	/** 알람 클릭으로 들어온 경우 ?open=<noticeId>가 붙어 있다(alarmNav.js 참고) - 최신순 첫
+	 * 페이지에 있으면 자동으로 펼쳐준다. */
+	let openId = $state(/** @type {number | null} */ (Number(page.url.searchParams.get('open')) || null));
 
 	const notices = createPagedList((offset) => getNotices($session.storeId, offset));
 

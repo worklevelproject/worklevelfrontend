@@ -6,6 +6,9 @@
 	import { session, isOwner } from '$lib/stores/session.js';
 	import { getAccessToken } from '$lib/api/token.js';
 	import { startPolling, stopPolling } from '$lib/stores/notifications.js';
+	import { setupPushNotifications, onForegroundAlarmPush } from '$lib/firebase/messaging.js';
+	import { goToPushAlarm } from '$lib/utils/alarmNav.js';
+	import { showToast } from '$lib/stores/toast.js';
 	import { titleFor } from '$lib/utils/titles.js';
 	import { counterpartPath } from '$lib/utils/viewMap.js';
 	import Shell from './Shell.svelte';
@@ -44,6 +47,7 @@
 		}
 		checked = true;
 		startPolling();
+		setupPushNotifications();
 	}
 
 	function get_isOwner() {
@@ -53,7 +57,21 @@
 		return v;
 	}
 
-	onDestroy(stopPolling);
+	/** 탭이 열려 있는 동안(포그라운드) 도착한 푸시는 서비스워커가 아니라 여기서 받는다 —
+	 * 클릭 가능한 토스트로 띄우고, 누르면 해당 알람으로 이동한다(다른 매장 것이면 그 매장으로
+	 * 전환까지 goToPushAlarm이 처리한다). */
+	let stopForegroundListener = () => {};
+	onMount(async () => {
+		stopForegroundListener = await onForegroundAlarmPush((payload) => {
+			const title = payload.notification?.title || '새 알림';
+			showToast(title, { onClick: () => goToPushAlarm(payload.data || {}) });
+		});
+	});
+
+	onDestroy(() => {
+		stopPolling();
+		stopForegroundListener();
+	});
 
 	const title = $derived(titleFor(page.url.pathname));
 </script>

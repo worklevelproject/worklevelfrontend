@@ -1,15 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
-	import { getAlarmDetail } from '$lib/api/alarm.js';
 	import { notifications, refreshNotifications } from '$lib/stores/notifications.js';
+	import { openAlarm } from '$lib/utils/alarmNav.js';
 
-	let opened = $state(/** @type {any} */ (null));
 	onMount(refreshNotifications);
 
-	async function open(a) {
-		opened = await getAlarmDetail($session.storeId, a.alarmTargetId);
-		refreshNotifications();
+	function open(a) {
+		openAlarm(a, $session.storeId, false);
 	}
 </script>
 
@@ -28,7 +26,4 @@
 			<div class="empty">알림이 없어요</div>
 		{/each}
 	</div>
-	{#if opened}
-		<div class="card w"><h3 style="margin-bottom:8px">{opened.title}</h3><p style="white-space:pre-line">{opened.content}</p></div>
-	{/if}
 </div>
