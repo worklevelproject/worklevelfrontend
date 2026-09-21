@@ -59,3 +59,12 @@ export function toHM(isoDateTime) {
 	const d = new Date(isoDateTime);
 	return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** ISO 문자열(LocalDateTime) -> "오늘 18:00" / "9월 22일 화 18:00" */
+export function dueLabel(isoDateTime) {
+	if (!isoDateTime) return '—';
+	return `${rel(isoDateTime.slice(0, 10))} ${toHM(isoDateTime)}`;
+}
+
+/** 'YYYY-MM-DD' -> 백엔드 DayOfWeek 이름('MONDAY'...) */
+export const dayKeyOf = (iso) => ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'][dowIdx(iso)];

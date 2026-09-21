@@ -6,7 +6,7 @@
 	import { getMyAttendanceHistory } from '$lib/api/attendance.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
-	import { DOCUMENT_TYPE, ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
+	import { DOCUMENT_TYPE, ATTENDANCE_STATUS, JOB_ROLE, daysLabel, attendancePillClass } from '$lib/utils/labels.js';
 	import { fmt, toHM } from '$lib/utils/date.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
@@ -50,7 +50,7 @@
 	<div class="hdr">
 		<div style="display:flex;gap:16px;align-items:center">
 			<div class="avatar lg">{profile.alias?.slice(1)}</div>
-			<div><div class="eyebrow">{profile.jobRole} · 입사 {profile.workStartDate || '—'} · {$session.storeName}</div><h1>{profile.alias}</h1></div>
+			<div><div class="eyebrow">{JOB_ROLE[profile.jobRole] || profile.jobRole} · 입사 {profile.workStartDate || '—'} · 기본 근무 {daysLabel(profile.availableDays)} · {$session.storeName}</div><h1>{profile.alias}</h1></div>
 		</div>
 		<div class="acts"><button class="btn o" onclick={() => (editingAlias = !editingAlias)}>표시 이름 바꾸기</button></div>
 	</div>

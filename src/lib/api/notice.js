@@ -12,7 +12,7 @@ export const applyWorkProposal = (storeId, noticeId, slotId) =>
 
 // ── 댓글/답글 ───────────────────────────────────────────────
 // 답글은 1단계 @멘션 방식: 최상위 댓글 아래 replies[]에 평평하게 쌓이고, 답글 대상은 replyTo로 표시한다.
-// 조회는 페이징 없이 전체를 한 번에 준다(최상위 댓글 배열, 각각 replies 포함).
+// 조회는 페이징 없이 전체를 한 번에 준다. 응답은 PageResponse 봉투라 최상위 댓글 배열은 .content에 있고(각각 replies 포함), hasNext는 항상 false다.
 export const getNoticeComments = (storeId, noticeId) =>
 	get(`/stores/${storeId}/notices/${noticeId}/comments`);
 /** body: {content(최대 1000자), replyToCommentId?} */

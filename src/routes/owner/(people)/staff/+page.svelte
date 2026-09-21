@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
-	import { getEmployeeStats } from '$lib/api/store.js';
-	import { DOC_EXPIRY_STATUS, docPillClass } from '$lib/utils/labels.js';
+	import { getEmployeeStats, getEmployees } from '$lib/api/store.js';
+	import { DOC_EXPIRY_STATUS, JOB_ROLE, daysLabel, docPillClass } from '$lib/utils/labels.js';
 	import { won } from '$lib/utils/format.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -16,7 +16,10 @@
 	async function load() {
 		loading = true;
 		try {
-			list = (await getEmployeeStats($session.storeId, activeTab)).content;
+			const [stats, emps] = await Promise.all([getEmployeeStats($session.storeId, activeTab), getEmployees($session.storeId)]);
+			// 통계 응답엔 기본 근무 요일이 없어 직원 목록과 ticketId로 합친다
+			const days = new Map(emps.map((e) => [e.ticketId, e.availableDays]));
+			list = stats.content.map((s) => ({ ...s, availableDays: days.get(s.ticketId) ?? null }));
 		} finally {
 			loading = false;
 		}
@@ -59,6 +62,7 @@
 			<tr>
 				<th class="sort" onclick={() => (sortKey = 'alias')}>직원</th>
 				<th>직무</th>
+				<th>기본 근무</th>
 				<th>시급</th>
 				<th class="sort" onclick={() => (sortKey = 'start')}>입사</th>
 				<th class="sort" onclick={() => (sortKey = 'hours')}>확인된 시간</th>
@@ -73,7 +77,8 @@
 			{#each sorted as p (p.ticketId)}
 				<tr class="click" onclick={() => goto(`/owner/staff/${p.ticketId}`)}>
 					<td><div class="who"><div class="avatar">{p.alias?.slice(1)}</div><span class="t">{p.alias}</span></div></td>
-					<td>{p.jobRole}</td>
+					<td>{JOB_ROLE[p.jobRole] || p.jobRole}</td>
+					<td class="num">{activeTab ? daysLabel(p.availableDays) : '—'}</td>
 					<td class="num">{p.hourlyWage?.toLocaleString() || '—'}원</td>
 					<td class="num">{p.workStartDate || '—'}</td>
 					<td class="num">{(p.confirmedWorkMinutes / 60).toFixed(0)}h</td>
@@ -84,7 +89,7 @@
 					<td><span class="link">자세히 →</span></td>
 				</tr>
 			{:else}
-				<tr><td colspan="10"><div class="empty">아직 없어요</div></td></tr>
+				<tr><td colspan="11"><div class="empty">아직 없어요</div></td></tr>
 			{/each}
 		</tbody>
 	</table>

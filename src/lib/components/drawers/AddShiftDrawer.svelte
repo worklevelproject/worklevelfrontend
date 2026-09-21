@@ -3,27 +3,48 @@
 	import DrawerShell from '../DrawerShell.svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getEmployees } from '$lib/api/store.js';
+	import { getTemplates } from '$lib/api/timeTemplate.js';
 	import { createWorks } from '$lib/api/work.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
-	import { TIME_TYPE } from '$lib/utils/labels.js';
-	import { todayISO } from '$lib/utils/date.js';
+	import { fmt, todayISO, dayKeyOf } from '$lib/utils/date.js';
 
-	/** @type {{onDone?: () => void, defaultDate?: string}} */
-	let { onDone, defaultDate } = $props();
+	/** 근무는 오픈/마감 두 시간대만 쓴다. 매장 설정의 시간대 템플릿이 없거나 못 읽으면 이 값으로 채운다.
+	 * @type {{onDone?: () => void, defaultDate?: string, defaultStart?: string}} */
+	let { onDone, defaultDate, defaultStart } = $props();
 
+	const FALLBACK = { OPEN: ['09:00', '15:00'], CLOSE: ['17:00', '22:00'] };
+	const LABEL = { OPEN: '오픈', CLOSE: '마감' };
+
+	const date = defaultDate || todayISO();
 	let employees = $state(/** @type {any[]} */ ([]));
 	let selected = $state(/** @type {number[]} */ ([]));
-	let timeType = $state('NORMAL');
-	let date = $state(defaultDate || todayISO());
-	let startTime = $state('09:00');
-	let endTime = $state('18:00');
+	let timeType = $state('OPEN');
+	/** @type {Record<string, [string, string]>} */
+	let times = $state({ OPEN: [...FALLBACK.OPEN], CLOSE: [...FALLBACK.CLOSE] });
 	let saving = $state(false);
 	let err = $state('');
 
 	onMount(async () => {
-		employees = await getEmployees($session.storeId);
+		const [emp, tpl] = await Promise.allSettled([getEmployees($session.storeId), getTemplates($session.storeId)]);
+		// 그 날이 기본 근무 요일인 직원을 앞으로 올려 고르기 쉽게 한다(자동으로 체크하진 않는다)
+		if (emp.status === 'fulfilled') employees = [...emp.value].sort((a, b) => Number(isDefault(b)) - Number(isDefault(a)));
+		else err = emp.reason?.message || '직원 목록을 불러오지 못했어요';
+		if (tpl.status === 'fulfilled') {
+			for (const t of tpl.value) {
+				if (t.timeType in times) times[t.timeType] = [t.startTime.slice(0, 5), t.endTime.slice(0, 5)];
+			}
+		}
+		// 시간표의 빈 칸을 눌러 들어오면 그 시각이 시작 시각으로 넘어온다
+		if (defaultStart) {
+			const [s, e] = times[timeType];
+			const len = Math.max(1, Number(e.slice(0, 2)) - Number(s.slice(0, 2)));
+			const endH = Math.min(24, Number(defaultStart.slice(0, 2)) + len);
+			times[timeType] = [defaultStart, endH === 24 ? '23:59' : `${String(endH).padStart(2, '0')}:00`];
+		}
 	});
+
+	const isDefault = (p) => !!p.availableDays?.includes(dayKeyOf(date));
 
 	function toggle(id) {
 		selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
@@ -31,6 +52,7 @@
 
 	async function submit() {
 		if (!selected.length) return (err = '직원을 한 명 이상 골라 주세요');
+		const [startTime, endTime] = times[timeType];
 		saving = true;
 		err = '';
 		try {
@@ -42,7 +64,7 @@
 					participantTicketIds: selected
 				}
 			]);
-			showToast('근무를 넣었어요 · 직원에게 바로 배정됐어요');
+			showToast('근무를 넣었어요 · 직원에게 바로 확정됐어요');
 			closeDrawer();
 			onDone?.();
 		} catch (e) {
@@ -53,30 +75,23 @@
 	}
 </script>
 
-<DrawerShell title="근무 넣기">
+<DrawerShell title={`${fmt(date)} 근무 넣기`}>
 	{#snippet children()}
 		<div class="f">
-			<label>시간대</label>
+			<label>어떤 시간대</label>
 			<div class="opts">
-				{#each Object.entries(TIME_TYPE) as [k, l] (k)}
-					<button class={timeType === k ? 'on' : ''} onclick={() => (timeType = k)}>{l}</button>
+				{#each Object.entries(LABEL) as [k, l] (k)}
+					<button class={timeType === k ? 'on' : ''} onclick={() => (timeType = k)}>{l} {times[k][0]}–{times[k][1]}</button>
 				{/each}
 			</div>
 		</div>
 		<div class="f">
-			<div class="inline">
-				<div class="f" style="margin:0"><label>날짜</label><input bind:value={date} /></div>
-				<div class="f" style="margin:0"><label>시작</label><input bind:value={startTime} /></div>
-				<div class="f" style="margin:0"><label>끝</label><input bind:value={endTime} /></div>
-			</div>
-		</div>
-		<div class="f">
-			<label>누구에게</label>
+			<label>누가</label>
 			<div class="rank">
 				{#each employees as p (p.ticketId)}
 					<button class={selected.includes(p.ticketId) ? 'on' : ''} onclick={() => toggle(p.ticketId)}>
 						<span class="avatar">{p.alias?.slice(1)}</span>
-						<span class="main"><span class="t">{p.alias}</span></span>
+						<span class="main"><span class="t">{p.alias}</span>{#if isDefault(p)}<span class="s">기본 근무 요일</span>{/if}</span>
 					</button>
 				{:else}
 					<div class="empty">직원이 없어요</div>

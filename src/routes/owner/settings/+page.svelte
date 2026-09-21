@@ -88,7 +88,7 @@
 		try {
 			slots = await upsertTemplates(
 				$session.storeId,
-				['OPEN', 'NORMAL', 'CLOSE'].map((t) => {
+				['OPEN', 'CLOSE'].map((t) => {
 					const s = slotFor(t);
 					return { timeType: t, startTime: s.startTime, endTime: s.endTime };
 				})
@@ -155,7 +155,7 @@
 		{:else if sec === 'slots'}
 			<h3 style="margin-bottom:16px">근무 시간대</h3>
 			<p class="muted" style="margin-bottom:16px">시간대는 근무 넣기와 근무표 초안 만들기 화면에 쓰여요.</p>
-			{#each ['OPEN', 'NORMAL', 'CLOSE'] as t (t)}
+			{#each ['OPEN', 'CLOSE'] as t (t)}
 				<div class="f" style="max-width:420px">
 					<label>{TIME_TYPE[t]}</label>
 					<div class="inline">
