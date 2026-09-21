@@ -10,6 +10,7 @@
 	import { fmt, toHM } from '$lib/utils/date.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
+	import ContractDocViewDrawer from '$lib/components/drawers/ContractDocViewDrawer.svelte';
 	import CorrectionDrawer from '$lib/components/drawers/CorrectionDrawer.svelte';
 
 	let profile = $state(/** @type {any} */ (null));
@@ -87,7 +88,7 @@
 			<div class="sec">
 				<div class="sec-h"><h3>서류</h3><button class="link b" onclick={() => openDrawer(ContractDocDrawer, { ticketId: $session.ticketId, onDone: load })}>등록</button></div>
 				{#each docs as d (d.contractDocumentId)}
-					<div class="doc"><div><div class="t">{DOCUMENT_TYPE[d.documentType] || d.documentType}</div><div class="s">만료 {d.expiryDate}</div></div></div>
+					<button class="doc" onclick={() => openDrawer(ContractDocViewDrawer, { ticketId: $session.ticketId, contractDocumentId: d.contractDocumentId })}><div><div class="t">{DOCUMENT_TYPE[d.documentType] || d.documentType}</div><div class="s">만료 {d.expiryDate}</div></div></button>
 				{:else}
 					<div class="empty">등록된 서류가 없어요</div>
 				{/each}

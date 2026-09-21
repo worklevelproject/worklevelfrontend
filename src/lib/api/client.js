@@ -1,6 +1,7 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './token.js';
 import { withScheme } from '../utils/url.js';
 import { actingHeaderFor } from './acting.js';
+import { trackLoading } from '../stores/loading.js';
 
 export const API_BASE_URL = withScheme(import.meta.env.API_BASE_URL) || 'http://localhost:8080';
 
@@ -103,8 +104,18 @@ export async function apiFetch(path, opts = {}) {
 	return data;
 }
 
+// 사용자 조작 없이 백그라운드로 도는 쓰기 요청은 화면을 막지 않는다(FCM 토큰 등록 등).
+const SILENT_WRITE_PATHS = ['/fcm-tokens'];
+
+/** 쓰기(POST/PATCH/PUT/DELETE)는 끝날 때까지 전역 로딩 오버레이로 화면을 막아 중복 제출을 막는다.
+ * GET은 화면마다 자기 로딩 표시가 있어 오버레이를 쓰지 않는다. */
+const write = (method, path, body) =>
+	SILENT_WRITE_PATHS.includes(path)
+		? apiFetch(path, { method, body })
+		: trackLoading(() => apiFetch(path, { method, body }));
+
 export const get = (path, params) => apiFetch(path, { method: 'GET', params });
-export const post = (path, body) => apiFetch(path, { method: 'POST', body });
-export const patch = (path, body) => apiFetch(path, { method: 'PATCH', body });
-export const put = (path, body) => apiFetch(path, { method: 'PUT', body });
-export const del = (path) => apiFetch(path, { method: 'DELETE' });
+export const post = (path, body) => write('POST', path, body);
+export const patch = (path, body) => write('PATCH', path, body);
+export const put = (path, body) => write('PUT', path, body);
+export const del = (path) => write('DELETE', path);

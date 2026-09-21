@@ -75,7 +75,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 직원 | ✅ | `GET .../owner/employees/stats`, `GET .../owner/invite-code` | |
-| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류는 목록(만료일)만 — 파일 등록/열람은 직원 본인만 가능(백엔드 권한 설계) · 직무는 매니저/직원/파트타임(`PART_TIME`), 기본 근무 요일(`availableDays`)을 요일 칩으로 편집한다. 예전 기본 가능 시작/종료 입력은 화면에서 뺐다(백엔드 필드는 남아 있음). 근무표 시간표는 날짜 아래에 그 요일이 기본 근무 요일인 직원을 띄우고, 근무 넣기에서도 그 직원을 앞에 올린다 |
+| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류 행을 누르면 `ContractDocViewDrawer`가 `GET .../contract-documents/{id}` → `GET /s3-files/{s3FileId}/download-presign`으로 파일을 보여준다(사장님·직원 본인 모두 열람 가능, 이미지가 아니면 새 탭 열기) · 등록은 직원 본인만 가능(백엔드 권한 설계) · 직무는 매니저/직원/파트타임(`PART_TIME`), 기본 근무 요일(`availableDays`)을 요일 칩으로 편집한다. 예전 기본 가능 시작/종료 입력은 화면에서 뺐다(백엔드 필드는 남아 있음). 근무표 시간표는 날짜 아래에 그 요일이 기본 근무 요일인 직원을 띄우고, 근무 넣기에서도 그 직원을 앞에 올린다 |
 | 급여 | ✅(공제만 추정) | `GET .../owner/works/salary` | 직원별 이번달 실제 수당(기본·야간·휴일)·주휴수당 합계를 그대로 보여줌(`totalPay + weeklyAllowanceAmount`로 합산 — 이미 정확히 반영돼 있음, 확인 완료). 공제(3.3%/4대보험)만 백엔드 도메인이 없어 `lib/utils/payroll.js`의 `deductionFor`로 브라우저 설정을 따름 |
 | 사람 구하기(보조 링크) | 🧪 | 없음 | 직원 화면 안쪽 링크로 데모용 유지, 매출 도메인처럼 백엔드 지원 없음 |
 

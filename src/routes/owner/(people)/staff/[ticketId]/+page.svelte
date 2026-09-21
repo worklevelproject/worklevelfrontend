@@ -13,6 +13,7 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
+	import ContractDocViewDrawer from '$lib/components/drawers/ContractDocViewDrawer.svelte';
 
 	const ticketId = Number(page.params.ticketId);
 
@@ -156,16 +157,16 @@
 			<div class="sec">
 				<div class="sec-h"><h3>서류</h3><button class="link b" onclick={() => openDrawer(ContractDocDrawer, { ticketId, onDone: load })}>등록</button></div>
 				{#each docs as d (d.contractDocumentId)}
-					<div class="doc">
+					<button class="doc" onclick={() => openDrawer(ContractDocViewDrawer, { ticketId, contractDocumentId: d.contractDocumentId })}>
 						<div>
 							<div class="t">{DOCUMENT_TYPE[d.documentType] || d.documentType}</div>
 							<div class="s">만료 {d.expiryDate}</div>
 						</div>
-					</div>
+					</button>
 				{:else}
 					<div class="empty">등록된 서류가 없어요</div>
 				{/each}
-				<p class="tiny muted" style="margin-top:10px">서류는 사장님과 직원 본인이 등록할 수 있어요. 목록에는 만료일자만 보여요.</p>
+				<p class="tiny muted" style="margin-top:10px">서류는 사장님과 직원 본인이 등록할 수 있어요. 누르면 파일을 볼 수 있어요.</p>
 			</div>
 		</div>
 	</div>

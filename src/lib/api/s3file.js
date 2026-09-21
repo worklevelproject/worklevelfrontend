@@ -1,5 +1,6 @@
 import { get, post } from './client.js';
 import { withScheme } from '../utils/url.js';
+import { trackLoading } from '../stores/loading.js';
 
 /** PROTECTED 파일을 실제로 조회해주는 Cloudflare Worker 주소. 비어 있으면 PROTECTED 이미지를 못 띄운다. */
 export const CDN_BASE_URL = withScheme(import.meta.env.CDN_BASE_URL) || '';
@@ -51,15 +52,18 @@ function delay(ms) {
  * @param {() => Promise<T>} fn
  * @returns {Promise<T>}
  */
-export async function retryAfterUpload(fn) {
-	for (let attempt = 0; ; attempt++) {
-		try {
-			return await fn();
-		} catch (e) {
-			if (attempt >= UPLOAD_VERIFY_MAX_RETRIES) throw e;
-			await delay(UPLOAD_VERIFY_RETRY_DELAY_MS);
+export function retryAfterUpload(fn) {
+	// 재시도 대기(5초) 중에도 오버레이가 꺼졌다 켜지지 않도록 전체를 한 번에 감싼다.
+	return trackLoading(async () => {
+		for (let attempt = 0; ; attempt++) {
+			try {
+				return await fn();
+			} catch (e) {
+				if (attempt >= UPLOAD_VERIFY_MAX_RETRIES) throw e;
+				await delay(UPLOAD_VERIFY_RETRY_DELAY_MS);
+			}
 		}
-	}
+	});
 }
 
 /**
@@ -67,18 +71,20 @@ export async function retryAfterUpload(fn) {
  * bucketType: 'PUBLIC' | 'PRIVATE' | 'PROTECTED'
  * @returns {Promise<number>} s3FileId
  */
-export async function uploadFile(file, bucketType) {
-	const presign = await createUploadPresign({
-		fileName: file.name,
-		contentType: file.type || 'application/octet-stream',
-		bucketType
+export function uploadFile(file, bucketType) {
+	return trackLoading(async () => {
+		const presign = await createUploadPresign({
+			fileName: file.name,
+			contentType: file.type || 'application/octet-stream',
+			bucketType
+		});
+		const res = await fetch(presign.presignedUrl, {
+			method: 'PUT',
+			headers: { 'Content-Type': file.type || 'application/octet-stream' },
+			body: file
+		});
+		if (!res.ok) throw new Error('파일 업로드 실패');
+		// S3FileWebhookController가 업로드 완료를 비동기로 반영하므로, 완료 처리에는 약간의 지연이 있을 수 있다.
+		return presign.s3FileId;
 	});
-	const res = await fetch(presign.presignedUrl, {
-		method: 'PUT',
-		headers: { 'Content-Type': file.type || 'application/octet-stream' },
-		body: file
-	});
-	if (!res.ok) throw new Error('파일 업로드 실패');
-	// S3FileWebhookController가 업로드 완료를 비동기로 반영하므로, 완료 처리에는 약간의 지연이 있을 수 있다.
-	return presign.s3FileId;
 }
