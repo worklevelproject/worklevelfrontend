@@ -35,7 +35,7 @@
 		slots = detail.slots ?? [];
 	}
 	async function loadComments() {
-		comments = (await getNoticeComments($session.storeId, notice.id)) ?? [];
+		comments = (await getNoticeComments($session.storeId, notice.id))?.content ?? [];
 	}
 
 	onMount(async () => {

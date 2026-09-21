@@ -7,7 +7,8 @@ export const createStore = (body) => post('/stores', body); // {name, tel, addre
  * 매장·역할로 전환할 때 둘 다에 쓴다. */
 export const getMyTickets = () => get('/stores/me/tickets');
 export const getStore = (storeId) => get(`/stores/${storeId}`);
-/** [{ticketId, alias, hourlyWage, availableStartTime, availableEndTime, testMember}] - testMember=true가 점주 대리 접근 대상 */
+/** [{ticketId, alias, hourlyWage, availableStartTime, availableEndTime, availableDays, testMember}] - testMember=true가 점주 대리 접근 대상.
+ * availableDays는 기본 근무 요일(['MONDAY',...], 미설정이면 null). availableStart/EndTime은 화면에서 더 안 쓴다. */
 export const getEmployees = (storeId) => get(`/stores/${storeId}/employees`);
 /** 내 ticket 정보(직무/시급/근무시작일 등). jobRole==='OWNER'면 이 매장의 점주. */
 export const getMyProfile = (storeId) => get(`/stores/${storeId}/me`);
@@ -23,6 +24,7 @@ export const getEmployeeDetail = (storeId, ticketId) =>
 	get(`/stores/${storeId}/owner/employees/${ticketId}`);
 export const removeEmployee = (storeId, ticketId) =>
 	del(`/stores/${storeId}/owner/employees/${ticketId}`);
+/** body: {jobRole?:'MANAGER'|'STAFF'|'PART_TIME', hourlyWage?, workStartDate?, availableDays?:DayOfWeek[]} - 안 보낸 필드는 유지, availableDays를 []로 보내면 요일을 비운다 */
 export const updateEmployeeInfo = (storeId, ticketId, body) =>
 	patch(`/stores/${storeId}/owner/employees/${ticketId}`, body);
 /** 매장 이름/주소/전화번호. {storeId, name, address, tel} */

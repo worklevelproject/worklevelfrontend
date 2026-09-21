@@ -75,7 +75,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 직원 | ✅ | `GET .../owner/employees/stats`, `GET .../owner/invite-code` | |
-| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류는 목록(만료일)만 — 파일 등록/열람은 직원 본인만 가능(백엔드 권한 설계) |
+| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류는 목록(만료일)만 — 파일 등록/열람은 직원 본인만 가능(백엔드 권한 설계) · 직무는 매니저/직원/파트타임(`PART_TIME`), 기본 근무 요일(`availableDays`)을 요일 칩으로 편집한다. 예전 기본 가능 시작/종료 입력은 화면에서 뺐다(백엔드 필드는 남아 있음). 근무표 시간표는 날짜 아래에 그 요일이 기본 근무 요일인 직원을 띄우고, 근무 넣기에서도 그 직원을 앞에 올린다 |
 | 급여 | ✅(공제만 추정) | `GET .../owner/works/salary` | 직원별 이번달 실제 수당(기본·야간·휴일)·주휴수당 합계를 그대로 보여줌(`totalPay + weeklyAllowanceAmount`로 합산 — 이미 정확히 반영돼 있음, 확인 완료). 공제(3.3%/4대보험)만 백엔드 도메인이 없어 `lib/utils/payroll.js`의 `deductionFor`로 브라우저 설정을 따름 |
 | 사람 구하기(보조 링크) | 🧪 | 없음 | 직원 화면 안쪽 링크로 데모용 유지, 매출 도메인처럼 백엔드 지원 없음 |
 
@@ -83,7 +83,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 할 일 | ✅ | `GET .../tasks`, `GET .../tasks/{id}`, `POST/PATCH/DELETE .../owner/tasks`, `POST .../owner/tasks/{taskId}/responses`(배정), `PATCH .../tasks/{taskId}/responses/{id}/complete`(직원 완료) | work-response(근무별 보고 + 승인/반려)가 사라지고, 근무와 무관한 별도 할 일(Task) + 담당자 배정 방식. 승인/반려 단계 없이 담당 직원이 스스로 완료 처리. PHOTO 응답은 CDN 연결돼 점주가 `TaskDetailDrawer`에서 실제 사진을 봄 |
+| 할 일 | ✅ | `GET .../tasks`, `GET .../tasks/{id}`, `POST/PATCH/DELETE .../owner/tasks`, `PATCH .../tasks/{taskId}/complete`(직원 완료) | TaskResponse가 Task로 병합돼(백엔드 PR #57) 담당자(`ticketId`)·마감(`dueDate`, 필수)·상태(`PENDING/COMPLETE/FAIL`)·응답이 task 하나에 다 있다. 만들 때 "누구에게 + 언제까지(날짜+시간)"를 정하고, 재배정 API는 없어 삭제 후 재생성. 승인/반려 없이 담당 직원이 스스로 완료 처리하며, 마감을 넘겨 제출하면 FAIL(‘기한 넘김’). PENDING만 삭제 가능. PHOTO 응답은 CDN 연결돼 점주가 `TaskDetailDrawer`에서 실제 사진을 봄 |
 | 공지 · 인수인계 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST/PATCH/DELETE .../owner/notices`, `GET/POST .../notices/{id}/comments`, `PATCH .../comments/{commentId}`; `GET .../hand-overs`, `POST/PATCH/DELETE .../hand-overs/{id}` | 목업에서 실제 API로 교체. pin·읽음 추적 필드는 백엔드에 없어 빠짐. 마감(CLOSE) 근무 1건당 인수인계 1개만 가능(백엔드 제약) |
 | 레시피 | ✅ | `GET/POST/PATCH/DELETE .../manual-items` (category=RECIPE) | 메뉴 사진 업로드·표시 연결됨 — `uploadFile(file,'PROTECTED')`로 올리고 `thumbnailS3FileId`로 저장, `ProtectedThumb`로 CDN 통해 표시(`KNOWN_GAPS.md` #4). 버전(v)·"안 본 직원" 추적 없음 |
 | 매출 | 🧪 | 없음 | 매출 도메인 없음 |
@@ -92,7 +92,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 퇴사 처리 | ✅ | `POST/GET .../owner/employees/{ticketId}/resignation`(시작/재개·조회), `PATCH .../resignation/type`(구분 확정), `PATCH .../resignation/evaluation`(평가 중간저장), `POST .../resignation/evaluation/send`(전송), `GET .../resignation`·`POST .../resignation/confirm`·`POST .../resignation/fix-request`(직원 본인) | 직원 상세의 "퇴사처리" 버튼 → `/owner/staff/{ticketId}/resignation` 전용 화면(정량 지표 스냅샷 → 퇴사 구분 → 7문항 평가 → 전송)에서 4단계를 그대로 따라간다. 직원 쪽은 `/staff/resignation`에서 확인/수정요청(오늘 화면에 배너로 진입). 즉시 비활성화하는 기존 "내보내기"(`DELETE .../owner/employees/{ticketId}`)와는 완전히 별개 경로로 그대로 유지 |
+| 퇴사 처리 | ✅ | `POST/GET .../owner/employees/{ticketId}/resignation`(시작/재개·조회), `PATCH .../resignation/type`(구분 확정), `PATCH .../resignation/evaluation`(평가 중간저장), `POST .../resignation/evaluation/send`(전송), `GET .../resignation`·`POST .../resignation/confirm`·`POST .../resignation/fix-request`(직원 본인) | 직원 상세의 "퇴사처리" 버튼 → `/owner/staff/{ticketId}/resignation` 전용 화면(정량 지표 스냅샷 → 퇴사 구분 → 7문항 평가 → 전송)에서 4단계를 그대로 따라간다. 직원 쪽은 `/staff/resignation`에서 확인/수정요청(오늘 화면에 배너로 진입). 직원 상세의 "내보내기"(즉시 비활성화, `DELETE .../owner/employees/{ticketId}`) 버튼은 제거해 퇴사 처리만 남겼다(API 함수 `removeEmployee`는 남겨 둠) |
 | 알림 | ✅ | `GET .../alarms`, `GET .../alarms/{id}` | |
 | 설정 · 매장 정보 | ✅ | `GET/PATCH .../owner/config` | |
 | 설정 · 근무 시간대 | ✅ | `GET/PUT .../owner/time-templates` | |
@@ -109,7 +109,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 |---|---|---|---|
 | 오늘 | ✅ | `GET .../work-assignments/mine`, `POST .../works/{id}/check-in\|check-out`, `GET .../attendances/mine`(신규) | 체크인/체크아웃 직후 낙관적 갱신은 그대로 두되, 로드 시 `GET .../attendances/mine`(오늘 날짜)을 진실 소스로 조회해 새로고침해도 상태가 유지되도록 함(`KNOWN_GAPS.md` 옛 #2 해소). 로드 시 `GET .../resignation`도 함께 찔러보고(대개 404, 조용히 무시), 점주가 3단계까지 보낸 퇴사처리가 있으면 "확인하기" 배너로 `/staff/resignation`을 안내 |
 | 근무표 | ✅ | `GET .../works?year=&month=` | 동료 이름은 안 보이고 내 근무 여부만 `assigned`로 제공 — API 제약 |
-| 할 일 | ✅ | `GET .../tasks`(내게 배정된 것만 클라이언트에서 필터), `PATCH .../tasks/{taskId}/responses/{id}/complete` | 승인/반려 없이 직원이 스스로 완료 처리 |
+| 할 일 | ✅ | `GET .../tasks`(내게 배정된 것만 클라이언트에서 필터), `PATCH .../tasks/{taskId}/complete` | 승인/반려 없이 직원이 스스로 완료 처리. 마감 초과 제출은 FAIL |
 | 내 급여 | ✅(공제만 추정) | `GET .../works/salary/mine` | 이번달 실제 수당·주휴수당 합계(`totalPay + weeklyAllowanceAmount`). 공제만 브라우저 설정 추정 |
 | 공지 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST .../notices/{id}/slots/{slotId}/apply`, 댓글 API | 근무 제안(`WORK_PROPOSAL`) 공지는 슬롯을 선착순으로 지원하면 그 자리에서 내 근무로 확정된다. 댓글은 1단계 @멘션 답글, 수정은 본인 것만(삭제 API 없음) |
 | 레시피 | ✅ | `GET .../manual-items` | |

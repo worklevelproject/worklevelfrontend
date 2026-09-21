@@ -1,14 +1,15 @@
 <script>
 	import DrawerShell from '../DrawerShell.svelte';
 	import { session } from '$lib/stores/session.js';
-	import { completeTaskResponse } from '$lib/api/taskResponse.js';
+	import { completeTask } from '$lib/api/task.js';
 	import { uploadFile, retryAfterUpload } from '$lib/api/s3file.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { CONTENT_TYPE } from '$lib/utils/labels.js';
+	import { dueLabel } from '$lib/utils/date.js';
 
-	/** @type {{taskId:number, taskResponseId:number, title:string, contentType:'CHECK'|'MEMO'|'PHOTO', onDone?: () => void}} */
-	let { taskId, taskResponseId, title, contentType, onDone } = $props();
+	/** @type {{taskId:number, title:string, contentType:'CHECK'|'MEMO'|'PHOTO', dueDate?:string, onDone?: () => void}} */
+	let { taskId, title, contentType, dueDate, onDone } = $props();
 
 	let checked = $state(true);
 	let memo = $state('');
@@ -37,9 +38,10 @@
 				response = { s3FileIds: ids };
 				justUploaded = true;
 			}
-			const complete = () => completeTaskResponse($session.storeId, taskId, taskResponseId, response);
+			const complete = () => completeTask($session.storeId, taskId, response);
 			await (justUploaded ? retryAfterUpload(complete) : complete());
-			showToast('완료 처리했어요');
+			const late = dueDate && new Date(dueDate) < new Date();
+			showToast(late ? '마감이 지나서 기한 넘김으로 기록됐어요' : '완료 처리했어요');
 			closeDrawer();
 			onDone?.();
 		} catch (e) {
@@ -53,7 +55,7 @@
 
 <DrawerShell title={title}>
 	{#snippet children()}
-		<div class="muted tiny" style="margin-bottom:12px">{CONTENT_TYPE[contentType]}</div>
+		<div class="muted tiny" style="margin-bottom:12px">{CONTENT_TYPE[contentType]}{dueDate ? ` · ${dueLabel(dueDate)}까지` : ''}</div>
 		{#if contentType === 'CHECK'}
 			<label class="setrow" style="cursor:pointer">
 				<div class="t">했어요</div>

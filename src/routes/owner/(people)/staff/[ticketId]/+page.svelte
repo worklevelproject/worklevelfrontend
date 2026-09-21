@@ -1,17 +1,15 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
-	import { getEmployeeDetail, getEmployeeStats, updateEmployeeInfo, removeEmployee } from '$lib/api/store.js';
+	import { getEmployeeDetail, getEmployeeStats, updateEmployeeInfo } from '$lib/api/store.js';
 	import { getList as getDocList } from '$lib/api/contractDocument.js';
 	import { getStoreSalary } from '$lib/api/cost.js';
 	import { mock } from '$lib/stores/mock.js';
 	import { deductionFor } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
 	import { fmt } from '$lib/utils/date.js';
-	import { DOCUMENT_TYPE } from '$lib/utils/labels.js';
-	import { confirmBox } from '$lib/stores/confirm.js';
+	import { DOCUMENT_TYPE, JOB_ROLE, EDITABLE_JOB_ROLES, DAY_KEYS, DAY_LABEL, daysLabel } from '$lib/utils/labels.js';
 	import { showToast } from '$lib/stores/toast.js';
 
 	const ticketId = Number(page.params.ticketId);
@@ -21,7 +19,7 @@
 	let salaryRow = $state(/** @type {any} */ (null));
 	let docs = $state(/** @type {any[]} */ ([]));
 	let editing = $state(false);
-	let form = $state({ jobRole: 'STAFF', hourlyWage: 0, workStartDate: '', availableStartTime: '09:00', availableEndTime: '18:00' });
+	let form = $state({ jobRole: 'STAFF', hourlyWage: 0, workStartDate: '', availableDays: /** @type {string[]} */ ([]) });
 	let saving = $state(false);
 	let err = $state('');
 
@@ -40,11 +38,14 @@
 			jobRole: d.jobRole,
 			hourlyWage: d.hourlyWage || 0,
 			workStartDate: d.workStartDate || '',
-			availableStartTime: d.availableStartTime?.slice(0, 5) || '09:00',
-			availableEndTime: d.availableEndTime?.slice(0, 5) || '18:00'
+			availableDays: [...(d.availableDays || [])]
 		};
 	}
 	onMount(load);
+
+	function toggleDay(k) {
+		form.availableDays = form.availableDays.includes(k) ? form.availableDays.filter((x) => x !== k) : [...form.availableDays, k];
+	}
 
 	const pay = $derived(
 		salaryRow ? deductionFor(salaryRow.totalPay + salaryRow.weeklyAllowanceAmount, $mock.paySettings.deduct) : null
@@ -58,8 +59,7 @@
 				jobRole: form.jobRole,
 				hourlyWage: Number(form.hourlyWage),
 				workStartDate: form.workStartDate || null,
-				availableStartTime: form.availableStartTime,
-				availableEndTime: form.availableEndTime
+				availableDays: form.availableDays
 			});
 			editing = false;
 			showToast('저장했어요');
@@ -69,18 +69,6 @@
 		} finally {
 			saving = false;
 		}
-	}
-
-	function onRemove() {
-		confirmBox(`${detail.alias}님을 내보낼까요?`, '이 직원의 티켓이 비활성화돼요. 확인된 근무 기록은 남아요.', '내보내기', async () => {
-			try {
-				await removeEmployee($session.storeId, ticketId);
-				showToast('내보냈어요');
-				goto('/owner/staff');
-			} catch (e) {
-				showToast(e?.message || '실패했어요');
-			}
-		}, true);
 	}
 </script>
 
@@ -93,13 +81,12 @@
 		<div style="display:flex;gap:16px;align-items:center">
 			<div class="avatar lg">{detail.alias?.slice(1)}</div>
 			<div>
-				<div class="eyebrow">{detail.jobRole} · 입사 {detail.workStartDate || '—'}{detail.isRepeated ? ' · 재입사 이력 있음' : ''}</div>
+				<div class="eyebrow">{JOB_ROLE[detail.jobRole] || detail.jobRole} · 입사 {detail.workStartDate || '—'}{detail.isRepeated ? ' · 재입사 이력 있음' : ''}</div>
 				<h1>{detail.alias}</h1>
 			</div>
 		</div>
 		<div class="acts">
 			<a class="btn s" href="/owner/staff/{ticketId}/resignation">퇴사처리</a>
-			<button class="btn d" onclick={onRemove}>내보내기</button>
 			<button class="btn p" onclick={() => (editing = !editing)}>{editing ? '취소' : '정보 수정'}</button>
 		</div>
 	</div>
@@ -111,23 +98,30 @@
 					<div class="f">
 						<label>직무</label>
 						<div class="opts">
-							{#each ['STAFF', 'MANAGER'] as r (r)}
-								<button class={form.jobRole === r ? 'on' : ''} onclick={() => (form.jobRole = r)}>{r === 'STAFF' ? '일반직원' : '매니저'}</button>
+							{#each EDITABLE_JOB_ROLES as r (r)}
+								<button class={form.jobRole === r ? 'on' : ''} onclick={() => (form.jobRole = r)}>{JOB_ROLE[r]}</button>
 							{/each}
 						</div>
 					</div>
 					<div class="f"><label>시급</label><input type="number" bind:value={form.hourlyWage} /></div>
 					<div class="f"><label>근무시작일</label><input bind:value={form.workStartDate} placeholder="YYYY-MM-DD" /></div>
 					<div class="f">
-						<div class="inline">
-							<div class="f" style="margin:0"><label>기본 가능 시작</label><input bind:value={form.availableStartTime} /></div>
-							<div class="f" style="margin:0"><label>기본 가능 종료</label><input bind:value={form.availableEndTime} /></div>
+						<label>기본 근무 요일</label>
+						<div class="opts">
+							{#each DAY_KEYS as k (k)}
+								<button class={form.availableDays.includes(k) ? 'on' : ''} onclick={() => toggleDay(k)}>{DAY_LABEL[k]}</button>
+							{/each}
 						</div>
 					</div>
 					{#if err}<p class="f err">{err}</p>{/if}
 					<button class="btn p w" disabled={saving} onclick={save}>저장</button>
 				</div>
 			{/if}
+
+			<div class="sec">
+				<div class="sec-h"><h3>기본 근무 요일</h3></div>
+				<div class="kv"><div><b>{daysLabel(detail.availableDays)}</b><span>근무표에서 이 요일에 이 직원이 후보로 떠요</span></div></div>
+			</div>
 
 			<div class="sec">
 				<div class="sec-h"><h3>이번 주 근무 · 이번달 급여</h3></div>
