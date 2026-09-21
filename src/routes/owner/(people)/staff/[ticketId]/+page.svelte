@@ -11,6 +11,8 @@
 	import { fmt } from '$lib/utils/date.js';
 	import { DOCUMENT_TYPE, JOB_ROLE, EDITABLE_JOB_ROLES, DAY_KEYS, DAY_LABEL, daysLabel } from '$lib/utils/labels.js';
 	import { showToast } from '$lib/stores/toast.js';
+	import { openDrawer } from '$lib/stores/drawer.js';
+	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
 
 	const ticketId = Number(page.params.ticketId);
 
@@ -152,7 +154,7 @@
 		</div>
 		<div>
 			<div class="sec">
-				<div class="sec-h"><h3>서류</h3></div>
+				<div class="sec-h"><h3>서류</h3><button class="link b" onclick={() => openDrawer(ContractDocDrawer, { ticketId, onDone: load })}>등록</button></div>
 				{#each docs as d (d.contractDocumentId)}
 					<div class="doc">
 						<div>
@@ -163,7 +165,7 @@
 				{:else}
 					<div class="empty">등록된 서류가 없어요</div>
 				{/each}
-				<p class="tiny muted" style="margin-top:10px">서류 등록·파일은 직원 본인만 할 수 있어요. 사장님에게는 만료일자만 보여요.</p>
+				<p class="tiny muted" style="margin-top:10px">서류는 사장님과 직원 본인이 등록할 수 있어요. 목록에는 만료일자만 보여요.</p>
 			</div>
 		</div>
 	</div>

@@ -7,21 +7,22 @@
 	import { createWorks } from '$lib/api/work.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
-	import { fmt, todayISO, dayKeyOf } from '$lib/utils/date.js';
+	import { fmt, todayISO, dayKeyOf, addDays } from '$lib/utils/date.js';
 
-	/** 근무는 오픈/마감 두 시간대만 쓴다. 매장 설정의 시간대 템플릿이 없거나 못 읽으면 이 값으로 채운다.
+	/** 오픈/마감은 매장 시간대 템플릿 값으로 채우고, 직접 입력(NORMAL)은 시간을 자유롭게 정한다.
+	 * 템플릿이 없거나 못 읽으면 FALLBACK 값을 쓴다. 시간칸은 세 종류 모두 직접 고칠 수 있다.
 	 * @type {{onDone?: () => void, defaultDate?: string, defaultStart?: string}} */
 	let { onDone, defaultDate, defaultStart } = $props();
 
-	const FALLBACK = { OPEN: ['09:00', '15:00'], CLOSE: ['17:00', '22:00'] };
-	const LABEL = { OPEN: '오픈', CLOSE: '마감' };
+	const FALLBACK = { OPEN: ['09:00', '15:00'], CLOSE: ['17:00', '22:00'], NORMAL: ['09:00', '18:00'] };
+	const LABEL = { OPEN: '오픈', CLOSE: '마감', NORMAL: '직접 입력' };
 
 	const date = defaultDate || todayISO();
 	let employees = $state(/** @type {any[]} */ ([]));
 	let selected = $state(/** @type {number[]} */ ([]));
 	let timeType = $state('OPEN');
 	/** @type {Record<string, [string, string]>} */
-	let times = $state({ OPEN: [...FALLBACK.OPEN], CLOSE: [...FALLBACK.CLOSE] });
+	let times = $state({ OPEN: [...FALLBACK.OPEN], CLOSE: [...FALLBACK.CLOSE], NORMAL: [...FALLBACK.NORMAL] });
 	let saving = $state(false);
 	let err = $state('');
 
@@ -53,6 +54,9 @@
 	async function submit() {
 		if (!selected.length) return (err = '직원을 한 명 이상 골라 주세요');
 		const [startTime, endTime] = times[timeType];
+		if (!startTime || !endTime) return (err = '시작·종료 시간을 입력해 주세요');
+		// 종료가 시작보다 이르거나 같으면 자정을 넘기는 근무로 보고 종료를 다음 날로 넘긴다
+		const endDate = endTime <= startTime ? addDays(date, 1) : date;
 		saving = true;
 		err = '';
 		try {
@@ -60,7 +64,7 @@
 				{
 					timeType,
 					startTime: `${date}T${startTime}:00`,
-					endTime: `${date}T${endTime}:00`,
+					endTime: `${endDate}T${endTime}:00`,
 					participantTicketIds: selected
 				}
 			]);
@@ -81,9 +85,19 @@
 			<label>어떤 시간대</label>
 			<div class="opts">
 				{#each Object.entries(LABEL) as [k, l] (k)}
-					<button class={timeType === k ? 'on' : ''} onclick={() => (timeType = k)}>{l} {times[k][0]}–{times[k][1]}</button>
+					<button class={timeType === k ? 'on' : ''} onclick={() => (timeType = k)}>{k === 'NORMAL' ? l : `${l} ${times[k][0]}–${times[k][1]}`}</button>
 				{/each}
 			</div>
+		</div>
+		<div class="f">
+			<label>시간</label>
+			<div class="inline">
+				<input type="time" bind:value={times[timeType][0]} aria-label="시작 시간" />
+				<input type="time" bind:value={times[timeType][1]} aria-label="종료 시간" />
+			</div>
+			{#if times[timeType][1] && times[timeType][0] && times[timeType][1] <= times[timeType][0]}
+				<p class="tiny muted">종료가 시작보다 이르면 다음 날 종료로 넣어요</p>
+			{/if}
 		</div>
 		<div class="f">
 			<label>누가</label>
