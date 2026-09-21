@@ -6,6 +6,7 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 	import DrawerHost from '$lib/components/DrawerHost.svelte';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 
 	let { children } = $props();
 
@@ -20,3 +21,4 @@
 <Toast />
 <ConfirmModal />
 <DrawerHost />
+<LoadingOverlay />
