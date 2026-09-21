@@ -54,7 +54,7 @@
 			<div class="f" style="margin:0"><label>만료일</label><input bind:value={expiryDate} /></div>
 		</div></div>
 		<div class="f"><label>파일</label><input type="file" accept="image/*,.pdf" onchange={(e) => (file = e.target.files?.[0] || null)} /></div>
-		<p class="tiny muted">사장님과 나만 볼 수 있어요.</p>
+		<p class="tiny muted">사장님과 직원 본인만 볼 수 있어요.</p>
 		{#if err}<p class="f err">{err}</p>{/if}
 	{/snippet}
 	{#snippet foot()}

@@ -2,6 +2,12 @@ import { get } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { getAlarmDetail, getMyAlarms } from '../api/alarm.js';
 import { session, isOwner } from '../stores/session.js';
+import { notifications } from '../stores/notifications.js';
+
+/** 서버에서 읽음 처리된 알람을 로컬 목록에도 바로 반영해 벨 배지가 즉시 줄어들게 한다 */
+function markReadLocal(alarmTargetId) {
+	notifications.update((list) => list.map((a) => (a.alarmTargetId === alarmTargetId ? { ...a, readCheck: true } : a)));
+}
 
 /**
  * 알람 refType을 실제 이동할 화면 경로로 매핑한다(백엔드 AlarmRefType과 1:1).
@@ -41,6 +47,7 @@ export function alarmTargetPath(alarm, isOwner) {
 export async function openAlarm(alarm, storeId, isOwnerValue) {
 	try {
 		await getAlarmDetail(storeId, alarm.alarmTargetId);
+		markReadLocal(alarm.alarmTargetId);
 	} catch {
 		/* 읽음 처리 실패는 무시 - 이동 자체는 계속 진행 */
 	}
@@ -95,7 +102,7 @@ export async function goToPushAlarm(data, fallbackPath = '/') {
 			if (!refType) goto(fallbackPath);
 			return;
 		}
-		getAlarmDetail(targetStoreId, match.alarmTargetId).catch(() => {});
+		getAlarmDetail(targetStoreId, match.alarmTargetId).then(() => markReadLocal(match.alarmTargetId)).catch(() => {});
 		if (!refType) goto(alarmTargetPath(match, targetOwner));
 	} catch {
 		if (!refType) goto(fallbackPath);
