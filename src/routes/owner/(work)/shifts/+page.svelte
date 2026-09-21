@@ -7,7 +7,7 @@
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, hh, dayKeyOf } from '$lib/utils/date.js';
-	import { TIME_TYPE } from '$lib/utils/labels.js';
+	import { TIME_TYPE, holidayNameOf } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import ShiftDetailDrawer from '$lib/components/drawers/ShiftDetailDrawer.svelte';
 	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
@@ -53,6 +53,9 @@
 		const key = dayKeyOf(iso);
 		return employees.filter((e) => e.availableDays?.includes(key));
 	}
+	/** 그 날이 법정공휴일이면 그 이름(토/일은 제외) */
+	const holidayOf = (iso) => holidayNameOf(schedule?.days.find((d) => d.date === iso));
+
 	/** 그 날 이미 근무가 잡힌 직원 ticketId 집합 */
 	function scheduledOn(iso) {
 		const ids = new Set();
@@ -164,10 +167,12 @@
 			<div></div>
 			{#each ws as w (w.iso)}
 				{@const done = scheduledOn(w.iso)}
+				{@const hol = holidayOf(w.iso)}
 				<div class="dh {w.iso === today ? 'today' : ''}">
 					<span><b>{w.n}</b> <small>{w.d}{w.iso === today ? ' · 오늘' : ''}</small></span>
 					<button class="plus" aria-label="{w.m}월 {w.n}일 근무 넣기" onclick={() => openAdd(w.iso)}>+</button>
-					{#if defaultsOn(w.iso).length}
+					{#if hol}<div class="holn">{hol}</div>{/if}
+						{#if defaultsOn(w.iso).length}
 						<div class="dfl" title="기본 근무 요일인 직원 · 진하게 표시된 사람은 이미 근무가 잡혔어요">
 							{#each defaultsOn(w.iso) as e (e.ticketId)}<i class={done.has(e.ticketId) ? 'on' : ''}>{e.alias}</i>{/each}
 						</div>
@@ -183,7 +188,7 @@
 			</div>
 			{#each ws as w (w.iso)}
 				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-				<div class="col {w.iso === today ? 'today' : ''}" style="height:{bodyH}px" onclick={(e) => onColumnClick(e, w.iso)}>
+				<div class="col {w.iso === today ? 'today' : ''} {holidayOf(w.iso) ? 'hol' : ''}" style="height:{bodyH}px" onclick={(e) => onColumnClick(e, w.iso)}>
 					{#each layout(w.iso) as it (it.w.workId)}
 						{@const work = it.w}
 						<div
@@ -207,6 +212,6 @@
 		</div>
 	</div>
 	<p class="tiny muted" style="margin-top:16px">
-		날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). 날짜 옆 +나 시간표의 빈 칸을 누르면 근무를 넣고, 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
+		빨간 날짜는 법정공휴일이라 그날 근무는 휴일수당 대상이에요. 날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). 날짜 옆 +나 시간표의 빈 칸을 누르면 근무를 넣고, 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
 	</p>
 {/if}

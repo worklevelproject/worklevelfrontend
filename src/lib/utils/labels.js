@@ -66,3 +66,6 @@ export function resignationPillClass(status) {
 	if (status === 'EMPLOYEE_CONFIRM') return 'wait';
 	return 'bad';
 }
+
+/** 법정공휴일 이름. 토/일은 백엔드가 이름 없이 '주말'로 내려주므로 공휴일로 세지 않는다(없으면 null) */
+export const holidayNameOf = (x) => (x?.isHoliday && x.holidayName && x.holidayName !== '주말' ? x.holidayName : null);
