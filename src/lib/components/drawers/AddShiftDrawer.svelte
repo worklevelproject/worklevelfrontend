@@ -5,6 +5,7 @@
 	import { getEmployees } from '$lib/api/store.js';
 	import { getTemplates } from '$lib/api/timeTemplate.js';
 	import { createWorks } from '$lib/api/work.js';
+	import { getHolidays } from '$lib/api/holiday.js';
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { fmt, todayISO, dayKeyOf, addDays } from '$lib/utils/date.js';
@@ -25,9 +26,20 @@
 	let times = $state({ OPEN: [...FALLBACK.OPEN], CLOSE: [...FALLBACK.CLOSE], NORMAL: [...FALLBACK.NORMAL] });
 	let saving = $state(false);
 	let err = $state('');
+	/** 그 날이 휴일이면 이름('주말' 포함), 아니면 null */
+	let holiday = $state(/** @type {string | null} */ (null));
 
 	onMount(async () => {
-		const [emp, tpl] = await Promise.allSettled([getEmployees($session.storeId), getTemplates($session.storeId)]);
+		const [emp, tpl, hol] = await Promise.allSettled([
+			getEmployees($session.storeId),
+			getTemplates($session.storeId),
+			getHolidays($session.storeId, date, date)
+		]);
+		// 휴일 안내는 참고용이라 못 읽어도 근무 넣기는 그대로 된다
+		if (hol.status === 'fulfilled') {
+			const h = hol.value.find((x) => x.date === date);
+			holiday = h?.isHoliday ? h.holidayName || '휴일' : null;
+		}
 		// 그 날이 기본 근무 요일인 직원을 앞으로 올려 고르기 쉽게 한다(자동으로 체크하진 않는다)
 		if (emp.status === 'fulfilled') employees = [...emp.value].sort((a, b) => Number(isDefault(b)) - Number(isDefault(a)));
 		else err = emp.reason?.message || '직원 목록을 불러오지 못했어요';
@@ -81,6 +93,9 @@
 
 <DrawerShell title={`${fmt(date)} 근무 넣기`}>
 	{#snippet children()}
+		{#if holiday}
+			<p class="f tiny" style="color:var(--bad)">{holiday}이에요 · 이 날 근무는 휴일 근무로 잡혀 매장 설정에 따라 휴일수당이 붙어요</p>
+		{/if}
 		<div class="f">
 			<label>어떤 시간대</label>
 			<div class="opts">

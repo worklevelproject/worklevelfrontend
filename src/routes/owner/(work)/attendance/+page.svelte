@@ -91,7 +91,7 @@
 		<tbody>
 			{#each todays as a (a.workAssignmentId)}
 				<tr>
-					<td><div class="who"><div class="avatar">{a.alias?.slice(1)}</div><span class="t">{a.alias}</span></div></td>
+					<td><div class="who"><div class="avatar">{a.alias?.slice(1)}</div><span class="t">{a.alias}</span>{#if a.isHoliday}<span class="hol-tag">{a.holidayName || '휴일'}</span>{/if}</div></td>
 					<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
 					<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}</td>
 					<td class="num">{a.checkOut ? toHM(a.checkOutTime) : '—'}</td>
@@ -114,7 +114,7 @@
 		<tbody>
 			{#each items as a (a.workAssignmentId)}
 				<tr>
-					<td class="num">{fmtS(a.workDate)}</td>
+					<td class="num">{fmtS(a.workDate)}{#if a.isHoliday}<span class="hol-tag">{a.holidayName || '휴일'}</span>{/if}</td>
 					<td><div class="who"><div class="avatar" style="width:28px;height:28px;font-size:11px">{a.alias?.slice(1)}</div>{a.alias}</div></td>
 					<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
 					<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}</td>

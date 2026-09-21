@@ -2,13 +2,15 @@
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getWorks } from '$lib/api/work.js';
+	import { getHolidays } from '$lib/api/holiday.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, dateOf } from '$lib/utils/date.js';
-	import { TIME_TYPE } from '$lib/utils/labels.js';
+	import { TIME_TYPE, holidayNameOf } from '$lib/utils/labels.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let weekOffset = $state(0);
 	let loading = $state(true);
 	let error = $state('');
+	let holidays = $state(/** @type {Record<string, string>} */ ({}));
 
 	const baseMonday = mondayOf(todayISO());
 	const monday = $derived(addDays(baseMonday, weekOffset * 7));
@@ -26,11 +28,20 @@
 		loading = true;
 		error = '';
 		try {
-			await works.load();
+			await Promise.all([works.load(), loadHolidays()]);
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
+		}
+	}
+	/** 이번 주의 법정공휴일 이름. 실패해도 근무표는 그대로 보여준다 */
+	async function loadHolidays() {
+		try {
+			const list = await getHolidays($session.storeId, monday, addDays(monday, 6));
+			holidays = Object.fromEntries(list.map((h) => [h.date, holidayNameOf(h)]).filter(([, n]) => n));
+		} catch {
+			holidays = {};
 		}
 	}
 	$effect(() => {
@@ -61,8 +72,9 @@
 {:else}
 	<div class="week">
 		{#each ws as w (w.iso)}
-			<div class="day {w.iso === today ? 'today' : ''}">
+			<div class="day {w.iso === today ? 'today' : ''} {holidays[w.iso] ? 'hol' : ''}">
 				<div class="dh"><b>{w.n}</b><small>{w.d}{w.iso === today ? ' · 오늘' : ''}</small></div>
+				{#if holidays[w.iso]}<div class="holn">{holidays[w.iso]}</div>{/if}
 				{#each worksOf(w.iso) as work (work.id)}
 					<div class="blk" style={work.assigned ? 'outline:1.5px solid var(--carbon)' : ''}>
 						<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>

@@ -69,7 +69,7 @@
 					<tbody>
 						{#each history.items as a (a.workAssignmentId)}
 							<tr>
-								<td class="t">{fmt(a.workDate)}</td>
+								<td class="t">{fmt(a.workDate)}{#if a.isHoliday}<span class="hol-tag">{a.holidayName || '휴일'}</span>{/if}</td>
 								<td class="num">{toHM(a.workStartTime)}–{toHM(a.workEndTime)}</td>
 								<td class="num">{a.checkIn ? toHM(a.checkInTime) : '—'}{a.checkOut ? ' → ' + toHM(a.checkOutTime) : ''}</td>
 								<td><span class="pill {attendancePillClass(a.status)}">{ATTENDANCE_STATUS[a.status] || a.status}</span></td>
