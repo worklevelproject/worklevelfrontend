@@ -11,6 +11,7 @@ export const TITLES = {
 	'/owner/recipes': '레시피',
 	'/owner/sales': '매출',
 	'/owner/notifications': '알림',
+	'/owner/mypage': '마이페이지',
 	'/owner/settings': '설정',
 	'/staff/today': '오늘',
 	'/staff/schedule': '근무표',
@@ -20,6 +21,7 @@ export const TITLES = {
 	'/staff/recipes': '레시피',
 	'/staff/me': '내 정보',
 	'/staff/notifications': '알림',
+	'/staff/mypage': '마이페이지',
 	'/staff/settings': '설정'
 };
 

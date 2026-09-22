@@ -14,6 +14,7 @@
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import ContractDocDrawer from '$lib/components/drawers/ContractDocDrawer.svelte';
 	import ContractDocViewDrawer from '$lib/components/drawers/ContractDocViewDrawer.svelte';
+	import PassportViewDrawer from '$lib/components/drawers/PassportViewDrawer.svelte';
 
 	const ticketId = Number(page.params.ticketId);
 
@@ -89,6 +90,7 @@
 			</div>
 		</div>
 		<div class="acts">
+			<button class="btn s" onclick={() => openDrawer(PassportViewDrawer, { alias: detail.alias })}>workPassport 보기</button>
 			<a class="btn s" href="/owner/staff/{ticketId}/resignation">퇴사처리</a>
 			<button class="btn p" onclick={() => (editing = !editing)}>{editing ? '취소' : '정보 수정'}</button>
 		</div>
@@ -96,6 +98,15 @@
 
 	<div class="cols">
 		<div>
+			<div class="sec">
+				<div class="sec-h"><h3>시급</h3></div>
+				<div class="kv x3">
+					<div><b class="num">{won(detail.hourlyWage || 0)}</b><span>현재 적용 중</span></div>
+					{#if detail.pendingHourlyWage != null}
+						<div><b class="num">{won(detail.pendingHourlyWage)}</b><span>{fmt(detail.pendingHourlyWageApplyDate)}부터 적용 예정</span></div>
+					{/if}
+				</div>
+			</div>
 			{#if editing}
 				<div class="card w">
 					<div class="f">

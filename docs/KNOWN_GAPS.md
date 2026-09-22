@@ -109,6 +109,32 @@ fetch가 필요함 — 다 쓰면 `URL.revokeObjectURL`로 정리).
 이 필드가 master에 배포되기 전에는 후보 목록이 비어 보이니 백엔드 배포 순서에 유의. 예전에 만든
 매장은 테스트 멤버 자체가 없을 수 있다(마이그레이션 여부는 백엔드 확인 필요).
 
+## 7. (해결됨, 2026-09-22) 차후 적용될 시급을 조회할 방법이 없던 문제
+
+`StoreService#applyHourlyWageRequest`는 이미 시급이 있는 ticket의 시급을 바꾸면 즉시 반영하지 않고
+`HourlyWageChange` 스냅샷(다음주 월요일 `applyDate`)만 쌓아뒀다가 배치(`hourlyWageApplyStep`)가
+승격시킨다(task.md 3 요구사항 - "현재 적용중인 임금, 차후에 적용될 임금"을 점주 화면에 보여줘야
+함). `EmployeeDetailResponse`에 `pendingHourlyWage`/`pendingHourlyWageApplyDate`가 추가돼(PR #63,
+`eec8e43`) 해결됐다 - 대기 중인 스냅샷이 없으면 둘 다 null. `getEmployeeDetail`/`getMyProfile`/
+`updateEmployeeInfo` 세 경로 모두 적용됨.
+
+프론트(`owner/staff/[ticketId]/+page.svelte`)는 임시로 뒀던 클라이언트 로컬 상태 목업을 걷어내고
+`detail.pendingHourlyWage`/`detail.pendingHourlyWageApplyDate`를 그대로 쓰도록 고쳤다.
+
+## 8. (신규, 2026-09-22) 직원 응답에 memberId가 없어 "다른 사람 passport 조회"를 실제로 못 붙인다
+
+`GET /members/{memberId}/passports`(다른 회원의 공개 workPassport 조회, task.md 2)를 점주 화면에서
+쓰려면 그 직원의 `memberId`가 필요한데, `EmployeeDetailResponse`/`EmployeeSummaryResponse`는 설계상
+alias로만 식별되고 회원 실제 정보(memberId 포함)를 노출하지 않는다. 그래서
+`owner/staff/[ticketId]` 화면의 "workPassport 보기" 버튼(`PassportViewDrawer.svelte`)은 지금
+🧪 목업 데이터만 보여준다.
+
+**제안**: `EmployeeDetailResponse`에 `memberId`를 추가하거나(다른 매장 개인정보 노출 우려가 있다면
+점주 전용 응답에만), 점주용 `GET .../owner/employees/{ticketId}/passports`처럼 ticketId → 그
+직원의 공개 workPassport를 대신 조회해주는 프록시 API를 새로 만드는 방법도 있다(멤버 식별자를
+프론트에 아예 안 넘기고 싶다면 이쪽이 더 안전). 어느 쪽이든 되면 `PassportViewDrawer.svelte`의
+목업 배열을 `getPublicPassports(memberId)`(또는 새 API) 호출로 바꾸면 된다.
+
 ## 6. (신규, 2026-09-20) 근무 제안 공지 목록에는 슬롯이 안 실린다
 
 `GET .../notices`(목록)의 `NoticeResponse.slots`는 null이고 슬롯(지원 현황·내 지원 여부)은 단건
