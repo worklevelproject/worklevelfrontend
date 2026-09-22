@@ -38,7 +38,7 @@
 	/** 이번 주의 법정공휴일 이름. 실패해도 근무표는 그대로 보여준다 */
 	async function loadHolidays() {
 		try {
-			const list = await getHolidays($session.storeId, monday, addDays(monday, 6));
+			const list = await getHolidays(monday, addDays(monday, 6));
 			holidays = Object.fromEntries(list.map((h) => [h.date, holidayNameOf(h)]).filter(([, n]) => n));
 		} catch {
 			holidays = {};

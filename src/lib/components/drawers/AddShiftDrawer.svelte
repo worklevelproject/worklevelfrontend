@@ -33,7 +33,7 @@
 		const [emp, tpl, hol] = await Promise.allSettled([
 			getEmployees($session.storeId),
 			getTemplates($session.storeId),
-			getHolidays($session.storeId, date, date)
+			getHolidays(date, date)
 		]);
 		// 휴일 안내는 참고용이라 못 읽어도 근무 넣기는 그대로 된다
 		if (hol.status === 'fulfilled') {
