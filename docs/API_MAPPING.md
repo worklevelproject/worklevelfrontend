@@ -66,7 +66,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 근무표 | ✅ | `GET .../owner/works/weekly`, `POST .../owner/works`, `PATCH/DELETE .../owner/works/{id}` | 프로토타입의 매트릭스뷰·월간캘린더뷰는 생략(주간 보드뷰만). 근무 생성 요청은 `{timeType?, startTime, endTime, participantTicketIds}`뿐(제목·반복·업무내용 없음)이고 만들면 참여자에게 바로 배정된다 · 응답의 날짜별 `isHoliday/holidayName`으로 법정공휴일 날짜를 빨갛게 표시하고(토/일 `주말`은 제외), 근무 넣기 화면은 `GET .../holidays?from=&to=`로 그 날이 휴일이면 휴일수당 안내를 띄운다 |
+| 근무표 | ✅ | `GET .../owner/works/weekly`, `POST .../owner/works`, `PATCH/DELETE .../owner/works/{id}` | 프로토타입의 매트릭스뷰·월간캘린더뷰는 생략(주간 보드뷰만). 근무 생성 요청은 `{timeType?, startTime, endTime, participantTicketIds}`뿐(제목·반복·업무내용 없음)이고 만들면 참여자에게 바로 배정된다 · 응답의 날짜별 `isHoliday/holidayName`으로 법정공휴일 날짜를 빨갛게 표시하고(토/일 `주말`은 제외), 근무 넣기 화면은 `GET /holidays?from=&to=`(매장 무관 공개 API, storeId 없음)로 그 날이 휴일이면 휴일수당 안내를 띄운다 |
 | 출퇴근 | ✅ | `GET .../owner/dashboard/attendance`, 정정 승인/거절 API, `POST .../owner/work-assignments/{id}/no-show/revive`(신규) | 점주가 대신 출근/퇴근 처리하던 기능은 삭제 — 실제 출퇴근은 본인만 가능(백엔드 제약). 결근(NO_SHOW) 확정 건은 직원이 스스로 정정을 제안할 수 없어(체크인 자체가 막힘) 점주가 출퇴근 화면에서 "결근 복구" 버튼으로 실제 출퇴근 시각을 직접 확정해 넣는다(`ReviveNoShowDrawer`) · 항목의 `isHoliday/holidayName`이 true면 이름 옆에 휴일 태그(`주말` 포함)를 붙인다 |
 | 자동 근무표 초안(신규) | ✅(클라이언트 로직) | `GET .../owner/works/weekly`, `GET .../owner/time-templates`, `GET .../owner/employees/stats`, 확정 시 `POST .../owner/works` | 백엔드에 대응 도메인 없음 — `lib/utils/scheduleDraft.js`가 API 응답을 조합해 순수 클라이언트 휴리스틱으로 후보 배정을 계산(랭킹: 지난주 동일인 → 누적시간 → 정시출근율, 위험플래그: 15h 미만/40h 초과/6일 연속. 되는 시간 제출 API가 삭제돼 제출 여부·선호 시간대 랭킹은 없어졌다). 프로토타입의 휴가(leave) 차단 필터는 백엔드에 휴가 도메인이 없어 제외. "확정"은 기존 `createWorks`(배치 생성) 그대로 호출 |
 
@@ -111,7 +111,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 오늘 | ✅ | `GET .../work-assignments/mine`, `POST .../works/{id}/check-in\|check-out`, `GET .../attendances/mine`(신규) | 체크인/체크아웃 직후 낙관적 갱신은 그대로 두되, 로드 시 `GET .../attendances/mine`(오늘 날짜)을 진실 소스로 조회해 새로고침해도 상태가 유지되도록 함(`KNOWN_GAPS.md` 옛 #2 해소). 로드 시 `GET .../resignation`도 함께 찔러보고(대개 404, 조용히 무시), 점주가 3단계까지 보낸 퇴사처리가 있으면 "확인하기" 배너로 `/staff/resignation`을 안내 |
-| 근무표 | ✅ | `GET .../works?year=&month=` | 동료 이름은 안 보이고 내 근무 여부만 `assigned`로 제공 — API 제약 · 근무 목록 응답엔 휴일 정보가 없어 `GET .../holidays?from=&to=`(이번 주 월~일)로 따로 받아 그 날짜를 빨갛게 표시한다 |
+| 근무표 | ✅ | `GET .../works?year=&month=` | 동료 이름은 안 보이고 내 근무 여부만 `assigned`로 제공 — API 제약 · 근무 목록 응답엔 휴일 정보가 없어 `GET /holidays?from=&to=`(매장 무관 공개 API, 이번 주 월~일)로 따로 받아 그 날짜를 빨갛게 표시한다 |
 | 할 일 | ✅ | `GET .../tasks`(내게 배정된 것만 클라이언트에서 필터), `PATCH .../tasks/{taskId}/complete` | 승인/반려 없이 직원이 스스로 완료 처리. 마감 초과 제출은 FAIL |
 | 내 급여 | ✅(공제만 추정) | `GET .../works/salary/mine` | 이번달 실제 수당·주휴수당 합계(`totalPay + weeklyAllowanceAmount`). 공제만 브라우저 설정 추정 |
 | 공지 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST .../notices/{id}/slots/{slotId}/apply`, 댓글 API | 근무 제안(`WORK_PROPOSAL`) 공지는 슬롯을 선착순으로 지원하면 그 자리에서 내 근무로 확정된다. 댓글은 1단계 @멘션 답글, 수정은 본인 것만(삭제 API 없음) |
