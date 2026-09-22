@@ -12,6 +12,7 @@ const OWNER_TO_STAFF = {
 	payroll: 'pay',
 	staff: 'me',
 	notifications: 'notifications',
+	mypage: 'mypage',
 	settings: 'settings'
 };
 const STAFF_TO_OWNER = {
@@ -24,6 +25,7 @@ const STAFF_TO_OWNER = {
 	me: 'staff',
 	resignation: 'staff',
 	notifications: 'notifications',
+	mypage: 'mypage',
 	settings: 'settings'
 };
 

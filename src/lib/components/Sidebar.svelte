@@ -86,6 +86,9 @@
 				<Icon name="bell" />알림
 				{#if $unreadCount}<span class="n">{$unreadCount}</span>{/if}
 			</a>
+			<a class={isOn(base + '/mypage') ? 'on' : ''} href={base + '/mypage'}>
+				<Icon name="user" />마이페이지
+			</a>
 			<a class={page.url.pathname === base + '/settings' ? 'on' : ''} href={base + '/settings'}>
 				<Icon name="gear" />설정
 			</a>

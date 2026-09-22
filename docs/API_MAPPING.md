@@ -93,6 +93,9 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 퇴사 처리 | ✅ | `POST/GET .../owner/employees/{ticketId}/resignation`(시작/재개·조회), `PATCH .../resignation/type`(구분 확정), `PATCH .../resignation/evaluation`(평가 중간저장), `POST .../resignation/evaluation/send`(전송), `GET .../resignation`·`POST .../resignation/confirm`·`POST .../resignation/fix-request`(직원 본인) | 직원 상세의 "퇴사처리" 버튼 → `/owner/staff/{ticketId}/resignation` 전용 화면(정량 지표 스냅샷 → 퇴사 구분 → 7문항 평가 → 전송)에서 4단계를 그대로 따라간다. 직원 쪽은 `/staff/resignation`에서 확인/수정요청(오늘 화면에 배너로 진입). 직원 상세의 "내보내기"(즉시 비활성화, `DELETE .../owner/employees/{ticketId}`) 버튼은 제거해 퇴사 처리만 남겼다(API 함수 `removeEmployee`는 남겨 둠) |
+| 마이페이지(신규) | ✅ | `GET /members/me/passports`, `PATCH /members/me/passports/{resignationProcessId}/public` | 매장(storeId) 무관 회원 단위 화면(task.md 1) - `/owner/mypage`·`/staff/mypage` 둘 다 같은 `MyPassportSection.svelte`를 쓴다. 사이드바 하단에 "마이페이지" 고정 노출. 퇴사 확정(APPROVED)된 workPassport만 목록으로 뜨고, 카드마다 공개/비공개 토글이 있다 |
+| 직원 상세 · workPassport 보기(신규) | 🧪 | 없음(연결 예정: `GET /members/{memberId}/passports`) | task.md 2 - "다른 사람의 passport 조회는 점주화면에서만" 요구사항의 진입점만 만들어둠(`PassportViewDrawer.svelte`). 직원 응답에 memberId가 없어 실제 API는 아직 못 붙였다 - `KNOWN_GAPS.md` #8 |
+| 직원 상세 · 차후 적용 시급(신규) | ✅ | `GET .../owner/employees/{ticketId}`(`pendingHourlyWage`/`pendingHourlyWageApplyDate`) | task.md 3 - 시급을 바꾸면 백엔드가 다음주 월요일 적용으로 미뤄두는데(`HourlyWageChange`), 그 pending 값을 응답에 함께 내려줘 "현재 적용 중 / N월 N일부터 적용 예정"으로 보여준다 |
 | 알림 | ✅ | `GET .../alarms`, `GET .../alarms/{id}` | |
 | 설정 · 매장 정보 | ✅ | `GET/PATCH .../owner/config` | |
 | 설정 · 근무 시간대 | ✅ | `GET/PUT .../owner/time-templates` | |
