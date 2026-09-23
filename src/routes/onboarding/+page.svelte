@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { createStore, getMyTickets } from '$lib/api/store.js';
+	import { createStore, getMyTickets, joinStore } from '$lib/api/store.js';
 	import { session, isOwner } from '$lib/stores/session.js';
 	import { setActing } from '$lib/api/acting.js';
 	import { showToast } from '$lib/stores/toast.js';
@@ -19,6 +19,9 @@
 	let pos = $state('');
 	let loading = $state(false);
 	let err = $state('');
+	let inviteCode = $state('');
+	let joining = $state(false);
+	let joinErr = $state('');
 
 	onMount(async () => {
 		try {
@@ -45,6 +48,24 @@
 		}
 	}
 
+	/** 직원 시작 경로: 점주에게 받은 초대 코드로 매장에 들어간다 */
+	async function submitJoin() {
+		if (!inviteCode.trim()) return (joinErr = '초대 코드를 입력해 주세요');
+		joining = true;
+		joinErr = '';
+		try {
+			setActing(null);
+			const t = await joinStore(inviteCode.trim());
+			await session.selectStore(t.storeId);
+			showToast('매장에 들어왔어요');
+			await goto(t.jobRole === 'OWNER' ? '/owner/today' : '/staff/today');
+		} catch (e) {
+			joinErr = e?.status === 404 ? '맞는 초대 코드가 없어요' : e?.message || '참여하지 못했어요';
+		} finally {
+			joining = false;
+		}
+	}
+
 	async function submitCreate() {
 		if (!name.trim()) return (err = '매장 이름을 입력해 주세요');
 		loading = true;
@@ -64,20 +85,16 @@
 
 <svelte:head><title>매장 연결 · WORKLEVEL</title></svelte:head>
 
-<div class="login">
-	<div class="l">
+<!-- 시작 화면: 왼쪽 검은 소개 패널 없이 한 화면에 내 매장 / 직원 참여 / 매장 만들기를 보여준다 -->
+<div class="onb">
+	<div class="onb-h">
 		<div class="mark">WORKLEVEL</div>
-		{#if tickets.length}
-			<h1>어디로<br />들어갈까요?</h1>
-			<p>기존에 있던 매장으로 들어가거나, 새 매장을 만들 수 있어요.</p>
-		{:else}
-			<h1>매장을 만들어요</h1>
-			<p>매장을 만들면 직원 화면을 써볼 수 있는 테스트 멤버 5명이 함께 만들어져요.</p>
-		{/if}
+		<h1>{tickets.length ? '어디로 들어갈까요?' : '시작해 볼까요?'}</h1>
+		<p class="muted">{tickets.length ? '기존 매장으로 들어가거나, 초대 코드로 참여하거나, 새 매장을 만들 수 있어요.' : '직원이면 점주에게 받은 초대 코드로 참여하고, 점주면 매장을 만들어요.'}</p>
 	</div>
-	<div class="r">
+	<div class="onb-g">
 		{#if !loadingTickets && tickets.length}
-			<div class="box" style="margin-bottom:20px">
+			<div class="card w">
 				<h3 style="margin-bottom:12px">내 매장</h3>
 				{#each tickets as t (t.ticketId)}
 					<button
@@ -96,13 +113,20 @@
 			</div>
 		{/if}
 
-		<div class="box">
-			<h3 style="margin-bottom:16px">매장 만들기 (점주)</h3>
-				<div class="f"><label>매장 이름</label><input bind:value={name} placeholder="성수 블렌드" /></div>
-				<div class="f"><label>전화</label><input bind:value={tel} placeholder="02-000-0000" /></div>
-				<div class="f"><label>주소</label><input bind:value={pos} placeholder="서울 성동구 ..." /></div>
-				<button class="btn p w" disabled={loading} onclick={submitCreate}>매장 만들기</button>
+		<div class="card w">
+			<h3 style="margin-bottom:16px">초대 코드로 참여 (직원)</h3>
+			<div class="f"><label for="invite">초대 코드</label><input id="invite" bind:value={inviteCode} placeholder="점주에게 받은 코드" onkeydown={(e) => e.key === 'Enter' && !e.isComposing && submitJoin()} /></div>
+			<button class="btn p w" disabled={joining} onclick={submitJoin}>참여하기</button>
+			{#if joinErr}<p class="f err" style="margin-top:8px">{joinErr}</p>{/if}
+		</div>
 
+		<div class="card w">
+			<h3 style="margin-bottom:16px">매장 만들기 (점주)</h3>
+			<div class="f"><label for="sname">매장 이름</label><input id="sname" bind:value={name} placeholder="성수 블렌드" /></div>
+			<div class="f"><label for="stel">전화</label><input id="stel" bind:value={tel} placeholder="02-000-0000" /></div>
+			<div class="f"><label for="saddr">주소</label><input id="saddr" bind:value={pos} placeholder="서울 성동구 ..." /></div>
+			<button class="btn p w" disabled={loading} onclick={submitCreate}>매장 만들기</button>
+			<p class="tiny muted" style="margin-top:8px">매장을 만들면 직원 화면을 써볼 수 있는 테스트 멤버 5명이 함께 만들어져요.</p>
 			{#if err}<p class="f err" style="margin-top:8px">{err}</p>{/if}
 		</div>
 	</div>

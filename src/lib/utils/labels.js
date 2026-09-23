@@ -11,7 +11,7 @@ export function daysLabel(days) {
 	if (!days.length) return '없음';
 	return DAY_KEYS.filter((k) => days.includes(k)).map((k) => DAY_LABEL[k]).join('·');
 }
-export const TIME_TYPE = { OPEN: '오픈', CLOSE: '마감', NORMAL: '보통' };
+export const TIME_TYPE = { OPEN: '오픈', AFTERNOON: '오후', CLOSE: '마감', NORMAL: '보통' };
 export const CONTENT_TYPE = { CHECK: '했어요 버튼', MEMO: '글로 답하기', PHOTO: '사진으로 답하기' };
 export const TASK_STATUS = { PENDING: '진행 중', COMPLETE: '완료', FAIL: '기한 넘김' };
 export const TASK_RECURRENCE_TYPE = {

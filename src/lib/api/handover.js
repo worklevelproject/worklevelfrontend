@@ -1,9 +1,11 @@
 import { get, post, patch, del } from './client.js';
 
 /** workId를 주면 그 근무의 인수인계만 조회. 조회는 전직원, 작성/수정/삭제는 그 근무의 accept된 참여자만.
+ * 각 항목의 read는 {readCheck(본인이 상세를 열었는지), readCount, readers:null}.
  * PageResponse<HandOverResponse, {workId}> 봉투 - createPagedList로 소비한다. */
 export const getHandOvers = (storeId, workId, offset = 0) =>
 	get(`/stores/${storeId}/hand-overs`, { workId, offset });
+/** 상세 조회 = 그 시점에 읽음 기록. read.readers(읽은 사람 {ticketId, alias, readAt}, readAt 오름차순)까지 온다 */
 export const getHandOver = (storeId, handOverId) => get(`/stores/${storeId}/hand-overs/${handOverId}`);
 /** 마감(CLOSE) 근무 1개당 1건만 가능 */
 export const createHandOver = (storeId, workId, content) =>

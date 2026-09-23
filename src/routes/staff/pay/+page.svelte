@@ -4,7 +4,7 @@
 	import { getMyProfile } from '$lib/api/store.js';
 	import { getMySalary } from '$lib/api/cost.js';
 	import { mock } from '$lib/stores/mock.js';
-	import { deductionFor } from '$lib/utils/payroll.js';
+	import { deductionFor, deductOf } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
 
 	let profile = $state(/** @type {any} */ (null));
@@ -19,7 +19,7 @@
 	});
 
 	const gross = $derived(salary ? salary.totalPay + salary.weeklyAllowanceAmount : 0);
-	const r = $derived(salary ? deductionFor(gross, $mock.paySettings.deduct) : null);
+	const r = $derived(salary ? deductionFor(gross, deductOf($mock, $session.ticketId, profile?.jobRole)) : null);
 </script>
 
 <svelte:head><title>내 급여 · WORKLEVEL</title></svelte:head>

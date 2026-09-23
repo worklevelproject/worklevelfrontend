@@ -6,6 +6,8 @@ export const createStore = (body) => post('/stores', body); // {name, tel, addre
  * 로그인 직후 화면 분기(없으면 온보딩/하나면 바로 진입/여러 개면 선택)와, 앱 안에서 다른
  * 매장·역할로 전환할 때 둘 다에 쓴다. */
 export const getMyTickets = () => get('/stores/me/tickets');
+/** 직원이 점주에게 받은 초대 코드로 매장에 들어간다. 응답 {ticketId, storeId, jobRole, alias} */
+export const joinStore = (inviteCode) => post('/stores/join', { inviteCode });
 export const getStore = (storeId) => get(`/stores/${storeId}`);
 /** [{ticketId, alias, hourlyWage, availableStartTime, availableEndTime, availableDays, testMember}] - testMember=true가 점주 대리 접근 대상.
  * availableDays는 기본 근무 요일(['MONDAY',...], 미설정이면 null). availableStart/EndTime은 화면에서 더 안 쓴다. */
@@ -15,6 +17,8 @@ export const getMyProfile = (storeId) => get(`/stores/${storeId}/me`);
 export const updateMyAlias = (storeId, alias) => patch(`/stores/${storeId}/alias`, { alias });
 
 // ── 점주 전용 ────────────────────────────────────────────────
+/** {inviteCode} - 직원에게 알려줄 매장 고정 초대 코드 */
+export const getInviteCode = (storeId) => get(`/stores/${storeId}/owner/invite-code`);
 export const deleteStore = (storeId) => del(`/stores/${storeId}/owner/store`);
 /** 응답이 PageResponse<EmployeeStatResponse, {active}> 봉투로 오므로 호출부에서 .content를 꺼내 써야
  * 한다(offset 파라미터는 없음 - 사실상 한 페이지로 전체 직원을 준다). */

@@ -5,7 +5,6 @@
 	import { session } from '$lib/stores/session.js';
 	import { mock, resetMock } from '$lib/stores/mock.js';
 	import { getTemplates as getTimeTemplates, upsertTemplates } from '$lib/api/timeTemplate.js';
-	import { getConfig, upsert as upsertTimeConfig } from '$lib/api/timeConfig.js';
 	import { getStoreConfig, updateStoreConfig } from '$lib/api/store.js';
 	import { logout } from '$lib/api/auth.js';
 	import { withdraw } from '$lib/api/member.js';
@@ -13,26 +12,26 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { TIME_TYPE } from '$lib/utils/labels.js';
 
+	// 운영 시간대는 매장 정보 안으로 합쳤고, 근무 운영 설정(최소 인원·응답 기한)은 화면에서 뺐다(피드백).
 	const SEC = [
 		['store', '매장 정보'],
-		['slots', '근무 시간대'],
-		['timeconfig', '근무 운영 설정'],
 		['pay', '급여 규칙'],
 		['notif', '알림'],
 		['data', '데이터'],
 		['account', '계정']
 	];
 	const secKeys = SEC.map(([k]) => k);
-	/** TIME_TEMPLATE 알람 클릭 시 ?sec=slots로 들어온다(alarmNav.js 참고) - 유효한 섹션 키가
-	 * 아니면 무시하고 기본값(store)으로 둔다. */
-	const initialSec = page.url.searchParams.get('sec');
-	let sec = $state(secKeys.includes(initialSec) ? initialSec : 'store');
+	/** ?sec=<키>로 섹션을 고른다(TIME_TEMPLATE 알람, 사이드바의 점주 칩 등 - alarmNav.js/Sidebar 참고).
+	 * 이미 설정 화면에 있을 때 링크를 눌러도 따라가도록 URL을 계속 본다. 유효한 키가 아니면 store. */
+	let sec = $state('store');
+	$effect(() => {
+		const q = page.url.searchParams.get('sec');
+		sec = secKeys.includes(q) ? q : 'store';
+	});
 
 	let slots = $state(/** @type {any[]} */ ([]));
-	let timeConfig = $state(/** @type {any} */ (null));
 	let storeConfig = $state(/** @type {any} */ (null));
 	let savingSlots = $state(false);
-	let savingConfig = $state(false);
 	let savingStore = $state(false);
 
 	onMount(async () => {
@@ -40,11 +39,6 @@
 			slots = await getTimeTemplates($session.storeId);
 		} catch {
 			slots = [];
-		}
-		try {
-			timeConfig = await getConfig($session.storeId);
-		} catch {
-			timeConfig = { minStaff: 1, responseDeadlineMinutes: 720 };
 		}
 		try {
 			storeConfig = await getStoreConfig($session.storeId);
@@ -88,7 +82,7 @@
 		try {
 			slots = await upsertTemplates(
 				$session.storeId,
-				['OPEN', 'CLOSE'].map((t) => {
+				['OPEN', 'AFTERNOON', 'CLOSE'].map((t) => {
 					const s = slotFor(t);
 					return { timeType: t, startTime: s.startTime, endTime: s.endTime };
 				})
@@ -98,21 +92,6 @@
 			showToast(e?.message || '저장에 실패했어요');
 		} finally {
 			savingSlots = false;
-		}
-	}
-
-	async function saveTimeConfig() {
-		savingConfig = true;
-		try {
-			timeConfig = await upsertTimeConfig($session.storeId, {
-				minStaff: Number(timeConfig.minStaff),
-				responseDeadlineMinutes: Number(timeConfig.responseDeadlineMinutes)
-			});
-			showToast('저장했어요');
-		} catch (e) {
-			showToast(e?.message || '저장에 실패했어요');
-		} finally {
-			savingConfig = false;
 		}
 	}
 
@@ -152,10 +131,10 @@
 			<div class="f" style="max-width:420px"><label>주소</label><input bind:value={storeConfig.address} /></div>
 			<div class="f" style="max-width:420px"><label>전화번호</label><input bind:value={storeConfig.tel} /></div>
 			<button class="btn p" disabled={savingStore} onclick={saveStoreConfig}>저장</button>
-		{:else if sec === 'slots'}
-			<h3 style="margin-bottom:16px">근무 시간대</h3>
-			<p class="muted" style="margin-bottom:16px">시간대는 근무 넣기와 근무표 초안 만들기 화면에 쓰여요.</p>
-			{#each ['OPEN', 'CLOSE'] as t (t)}
+
+			<h3 style="margin:32px 0 8px">운영 시간대</h3>
+			<p class="muted" style="margin-bottom:16px">근무 넣기에서 시간대를 고르면 이 시간이 기본으로 채워져요.</p>
+			{#each ['OPEN', 'AFTERNOON', 'CLOSE'] as t (t)}
 				<div class="f" style="max-width:420px">
 					<label>{TIME_TYPE[t]}</label>
 					<div class="inline">
@@ -164,12 +143,7 @@
 					</div>
 				</div>
 			{/each}
-			<button class="btn p" disabled={savingSlots} onclick={saveSlots}>저장</button>
-		{:else if sec === 'timeconfig' && timeConfig}
-			<h3 style="margin-bottom:16px">근무 운영 설정</h3>
-			<div class="f" style="max-width:420px"><label>시간대별 최소 인원</label><input type="number" min="0" bind:value={timeConfig.minStaff} /></div>
-			<div class="f" style="max-width:420px"><label>근무 제안 응답 기한 (분)</label><input type="number" min="0" bind:value={timeConfig.responseDeadlineMinutes} /></div>
-			<button class="btn p" disabled={savingConfig} onclick={saveTimeConfig}>저장</button>
+			<button class="btn p" disabled={savingSlots} onclick={saveSlots}>운영 시간대 저장</button>
 		{:else if sec === 'pay'}
 			<h3 style="margin-bottom:16px">수당 계산</h3>
 			{#if storeConfig}
@@ -179,17 +153,14 @@
 				<div class="setrow"><div><div class="t">휴일수당</div></div><button class="toggle {storeConfig.applyHolidayAllowance ? 'on' : ''}" onclick={() => tog(storeConfig, 'applyHolidayAllowance')}></button></div>
 				<button class="btn p" style="margin:12px 0 24px" disabled={savingStore} onclick={saveStoreConfig}>수당 설정 저장</button>
 			{/if}
-			<h3 style="margin-bottom:16px">급여 규칙<span class="mock-badge">목업</span></h3>
+			<h3 style="margin-bottom:4px">급여 규칙<span class="mock-badge">목업</span></h3>
+			<p class="muted" style="margin-bottom:8px">급여 지급일 3일 전, 1일 전, 당일에 알림을 드려요. 공제 방식은 직원 상세에서 직원마다 정해요.</p>
 			<div class="setrow"><div><div class="t">급여 지급일</div></div>
 				<div class="opts">{#each [5, 10, 15, 25] as d (d)}<button class={$mock.paySettings.payday === d ? 'on' : ''} onclick={() => ($mock.paySettings.payday = d)}>{d}일</button>{/each}</div>
 			</div>
-			<div class="setrow"><div><div class="t">연장수당(주 40h 초과 ×1.5)</div></div><button class="toggle {$mock.paySettings.overtime ? 'on' : ''}" onclick={() => tog($mock.paySettings, 'overtime')}></button></div>
-			<div class="setrow"><div><div class="t">공제 방식</div></div>
-				<div class="opts">{#each [['3.3', '3.3%'], ['4대', '4대보험'], ['none', '없음']] as [v, l] (v)}<button class={$mock.paySettings.deduct === v ? 'on' : ''} onclick={() => ($mock.paySettings.deduct = v)}>{l}</button>{/each}</div>
-			</div>
 		{:else if sec === 'notif'}
 			<h3 style="margin-bottom:16px">알림<span class="mock-badge">목업</span></h3>
-			{#each [['shiftReply', '근무 요청 답'], ['taskDone', '할 일 완료·답'], ['docExpiry', '서류 만료 30일 전'], ['dailySummary', '아침 요약']] as [k, l] (k)}
+			{#each [['shiftReply', '근무 요청 답'], ['taskDone', '할 일 완료·답'], ['docExpiry', '서류 만료 30일 전']] as [k, l] (k)}
 				<div class="setrow"><div><div class="t">{l}</div></div><button class="toggle {$mock.notifSettings[k] ? 'on' : ''}" onclick={() => tog($mock.notifSettings, k)}></button></div>
 			{/each}
 		{:else if sec === 'data'}

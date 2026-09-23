@@ -85,7 +85,7 @@
 						<input style="width:64px" bind:value={s.startTime} aria-label="시작" />
 						<input style="width:64px" bind:value={s.endTime} aria-label="끝" />
 						<select bind:value={s.timeType} aria-label="시간대">
-							{#each ['OPEN', 'CLOSE'] as k (k)}<option value={k}>{TIME_TYPE[k]}</option>{/each}
+							{#each ['OPEN', 'AFTERNOON', 'CLOSE'] as k (k)}<option value={k}>{TIME_TYPE[k]}</option>{/each}
 						</select>
 						<input style="width:56px" type="number" min="1" bind:value={s.capacity} aria-label="인원" />
 						<span class="tiny muted">명</span>

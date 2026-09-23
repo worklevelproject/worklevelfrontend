@@ -7,16 +7,13 @@
 	import { getEmployeeStats } from '$lib/api/store.js';
 	import { getNotices } from '$lib/api/notice.js';
 	import { getHandOvers } from '$lib/api/handover.js';
-	import { getStoreSalary } from '$lib/api/cost.js';
 	import { todayISO, mondayOf, addDays, hh, toHM, rel } from '$lib/utils/date.js';
 	import { won, man } from '$lib/utils/format.js';
-	import { deductionFor } from '$lib/utils/payroll.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { ATTENDANCE_STATUS, attendancePillClass } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import NoticeDrawer from '$lib/components/drawers/NoticeDrawer.svelte';
-	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
 
 	let loading = $state(true);
 	let error = $state('');
@@ -25,7 +22,6 @@
 	let stats = $state(/** @type {any[]} */ ([]));
 	let notices = $state(/** @type {any[]} */ ([]));
 	let handovers = $state(/** @type {any[]} */ ([]));
-	let salary = $state(/** @type {any[]} */ ([]));
 	let nextWeek = $state(/** @type {any} */ (null));
 
 	const T = todayISO();
@@ -40,13 +36,12 @@
 		try {
 			const storeId = $session.storeId;
 			const nextMonday = addDays(mondayOf(T), 7);
-			const [att, corr, empStats, n, h, sal, nw] = await Promise.all([
+			const [att, corr, empStats, n, h, nw] = await Promise.all([
 				getAttendance(storeId, T),
 				getAttendanceCorrections(storeId),
 				getEmployeeStats(storeId, true),
 				getNotices(storeId),
 				getHandOvers(storeId),
-				getStoreSalary(storeId),
 				getOwnerWeeklySchedule(storeId, nextMonday)
 			]);
 			items = att.filter((a) => a.workDate === T);
@@ -54,7 +49,6 @@
 			stats = empStats.content;
 			notices = n.content;
 			handovers = h.content;
-			salary = sal;
 			nextWeek = nw;
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
@@ -76,10 +70,6 @@
 
 	const today = $derived($mock.sales[T] || { total: 0 });
 	const yesterday = $derived($mock.sales[Object.keys($mock.sales).sort().filter((k) => k < T).at(-1)] || { total: 0 });
-
-	const monthlyPayEstimate = $derived(
-		salary.reduce((sum, s) => sum + deductionFor(s.totalPay + s.weeklyAllowanceAmount, $mock.paySettings.deduct).net, 0)
-	);
 
 	async function onConfirmCorrection(id) {
 		try {
@@ -128,17 +118,10 @@
 	</div>
 
 	<div class="cols eq" style="margin-top:12px">
-		{#if nextWeekCount === 0}
-			<button class="card w" style="text-align:left" onclick={() => openDrawer(ScheduleDraftDrawer, { onDone: load })}>
-				<div class="tiny muted">다음 주 근무표</div>
-				<p style="margin-top:4px">아직 비어 있어요 · 초안 만들기</p>
-			</button>
-		{:else}
-			<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
-				<div class="tiny muted">다음 주 근무표</div>
-				<p style="margin-top:4px">근무 {nextWeekCount}건이 배정돼 있어요</p>
-			</a>
-		{/if}
+		<a class="card w" href="/owner/shifts" style="text-decoration:none;color:inherit">
+			<div class="tiny muted">다음 주 근무표</div>
+			<p style="margin-top:4px">{nextWeekCount === 0 ? '아직 비어 있어요 · 근무표에서 넣기' : `근무 ${nextWeekCount}건이 배정돼 있어요`}</p>
+		</a>
 	</div>
 
 	<div class="cols">
@@ -165,7 +148,7 @@
 				{/each}
 
 				{#if !corrections.length}
-					<div class="card"><div class="empty" style="padding:16px 0">챙길 게 없어요.</div></div>
+					<div class="card"><div class="empty" style="padding:16px 0">챙길 게 없어요.<br /><span class="tiny">직원이 출퇴근 기록 정정을 요청하면 여기에 떠요(공지·할 일은 각 화면에서 확인해요).</span></div></div>
 				{/if}
 			</div>
 
@@ -194,7 +177,7 @@
 
 			{#if handovers[0]}
 				<div class="sec">
-					<div class="sec-h"><h3>최근 마감 노트</h3><a class="more" href="/owner/notices">인수인계 →</a></div>
+					<div class="sec-h"><h3>최근 인수인계</h3><a class="more" href="/owner/notices">인수인계 →</a></div>
 					<div class="card">
 						<div class="tiny muted">{handovers[0].writer.alias} · {rel(handovers[0].createdAt.slice(0, 10))} {toHM(handovers[0].createdAt)}</div>
 						<p style="margin-top:6px;color:var(--carbon)">{handovers[0].content}</p>
@@ -212,15 +195,6 @@
 					{:else}
 						<div class="empty">공지가 없어요</div>
 					{/each}
-				</div>
-			</div>
-			<div class="sec">
-				<div class="sec-h"><h3>이번 달 급여 예상</h3><a class="more" href="/owner/payroll">급여 →</a></div>
-				<div class="card">
-					<div class="tile" style="padding:0;background:none">
-						<b class="num" style="font-size:24px">{won(monthlyPayEstimate)}</b>
-						<span>직원 {salary.length}명 실지급 예상 · 공제 방식은 급여 페이지 참고</span>
-					</div>
 				</div>
 			</div>
 		</div>

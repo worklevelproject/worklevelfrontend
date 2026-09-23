@@ -17,7 +17,7 @@
 	let loading = $state(true);
 	/** @type {Record<number, any>} 액션 응답으로만 알 수 있는 체크인 상태 */
 	let att = $state(/** @type {Record<number, {checkIn:boolean, checkOut:boolean, checkInTime?:string, checkOutTime?:string}>} */ ({}));
-	/** @type {Record<number, 'OPEN'|'CLOSE'|'NORMAL'>} 오늘 근무의 timeType (마감 인수인계 버튼 노출용) */
+	/** @type {Record<number, 'OPEN'|'AFTERNOON'|'CLOSE'|'NORMAL'>} 오늘 근무의 timeType (마감 인수인계 버튼 노출용) */
 	let timeTypes = $state(/** @type {Record<number, string>} */ ({}));
 	let resignationPending = $state(false);
 

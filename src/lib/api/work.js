@@ -3,6 +3,7 @@ import { get, post, patch, del } from './client.js';
 // ── 접근 허용(전직원) ──────────────────────────────────────────
 // 목록 조회는 전부 PageResponse<T,S> 봉투({content, search, offset, limit, totalCount, hasNext})로
 // 온다 - lib/utils/pagedList.svelte.js의 createPagedList로 offset을 이어가며 소비한다.
+/** 근무 목록 항목: {id, timeType, startTime, endTime, assigned(본인 배정 여부), workers:[{ticketId, alias}]} */
 export const getWorks = (storeId, { timeType, year, month, offset = 0 } = {}) =>
 	get(`/stores/${storeId}/works`, { timeType, year, month, offset });
 export const getWork = (storeId, workId) => get(`/stores/${storeId}/works/${workId}`);

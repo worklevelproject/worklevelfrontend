@@ -115,8 +115,7 @@ export function seedMock() {
 		period: '전월 1일 – 말일',
 		weeklyHoliday: true,
 		night: false,
-		overtime: true,
-		deduct: '3.3'
+		overtime: true
 	};
 
 	const attSettings = { method: 'QR', gps: 100, lateMin: 10, breakAuto: true, breakMin: 30 };
@@ -126,11 +125,10 @@ export function seedMock() {
 		taskDone: true,
 		docExpiry: true,
 		recipeSeen: false,
-		dailySummary: true,
 		email: false
 	};
 
 	const plan = 'beta';
 
-	return { notices, handovers, candidates, sales, team, paySettings, attSettings, notifSettings, plan };
+	return { notices, handovers, candidates, sales, team, paySettings, deductByTicket: {}, attSettings, notifSettings, plan };
 }

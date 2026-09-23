@@ -5,8 +5,8 @@
 	import { getEmployeeDetail, getEmployeeStats, updateEmployeeInfo } from '$lib/api/store.js';
 	import { getList as getDocList } from '$lib/api/contractDocument.js';
 	import { getStoreSalary } from '$lib/api/cost.js';
-	import { mock } from '$lib/stores/mock.js';
-	import { deductionFor } from '$lib/utils/payroll.js';
+	import { mock, setDeduct } from '$lib/stores/mock.js';
+	import { deductionFor, deductOf, DEDUCT_LABEL } from '$lib/utils/payroll.js';
 	import { won } from '$lib/utils/format.js';
 	import { fmt } from '$lib/utils/date.js';
 	import { DOCUMENT_TYPE, JOB_ROLE, EDITABLE_JOB_ROLES, DAY_KEYS, DAY_LABEL, daysLabel } from '$lib/utils/labels.js';
@@ -51,9 +51,8 @@
 		form.availableDays = form.availableDays.includes(k) ? form.availableDays.filter((x) => x !== k) : [...form.availableDays, k];
 	}
 
-	const pay = $derived(
-		salaryRow ? deductionFor(salaryRow.totalPay + salaryRow.weeklyAllowanceAmount, $mock.paySettings.deduct) : null
-	);
+	const deduct = $derived(detail ? deductOf($mock, ticketId, detail.jobRole) : '3.3');
+	const pay = $derived(salaryRow ? deductionFor(salaryRow.totalPay + salaryRow.weeklyAllowanceAmount, deduct) : null);
 
 	async function save() {
 		saving = true;
@@ -146,6 +145,10 @@
 						<div><b class="num">{(stat.confirmedWorkMinutes / 60).toFixed(0)}h</b><span>누적 확인 시간</span></div>
 					</div>
 				{/if}
+				<div class="setrow">
+					<div><div class="t">공제 방식</div><div class="s">직원마다 다르게 정해요 · 이 브라우저에만 저장돼요<span class="mock-badge">목업</span></div></div>
+					<div class="opts">{#each Object.entries(DEDUCT_LABEL) as [v, l] (v)}<button class={deduct === v ? 'on' : ''} onclick={() => setDeduct(ticketId, v)}>{l}</button>{/each}</div>
+				</div>
 				{#if pay}
 					<p class="tiny muted">이번달 실지급 예상 {won(pay.net)} (수당·주휴수당은 실제 계산값, 공제만 추정)</p>
 				{:else}

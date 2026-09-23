@@ -5,6 +5,7 @@ import { get, post, patch, del } from './client.js';
 /** type: 'NORMAL' | 'WORK_PROPOSAL' (생략하면 전체). WORK_PROPOSAL 공지는 slots(근무 제안 시간대)를 담고 있다. */
 export const getNotices = (storeId, offset = 0, type) =>
 	get(`/stores/${storeId}/notices`, { offset, type });
+/** 상세 조회 = 그 시점에 읽음 기록. read = {readCheck, readCount, readers[{ticketId, alias, readAt}]}. 목록의 read엔 readers가 없다(null) */
 export const getNotice = (storeId, noticeId) => get(`/stores/${storeId}/notices/${noticeId}`);
 /** 근무 제안 슬롯에 선착순 지원. 응답 {slotId, workId, workAssignmentId, capacity, appliedCount} - 지원 즉시 근무 배정이 확정된다. */
 export const applyWorkProposal = (storeId, noticeId, slotId) =>
