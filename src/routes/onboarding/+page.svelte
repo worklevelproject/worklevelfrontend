@@ -58,7 +58,8 @@
 			const t = await joinStore(inviteCode.trim());
 			await session.selectStore(t.storeId);
 			showToast('매장에 들어왔어요');
-			await goto(t.jobRole === 'OWNER' ? '/owner/today' : '/staff/today');
+			// 직원은 개인정보 수집·이용 동의와 기본 정보 입력부터 거친다
+			await goto(t.jobRole === 'OWNER' ? '/owner/today' : '/staff/welcome');
 		} catch (e) {
 			joinErr = e?.status === 404 ? '맞는 초대 코드가 없어요' : e?.message || '참여하지 못했어요';
 		} finally {

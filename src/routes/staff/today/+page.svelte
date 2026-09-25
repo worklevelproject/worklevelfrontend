@@ -17,8 +17,8 @@
 	let loading = $state(true);
 	/** @type {Record<number, any>} 액션 응답으로만 알 수 있는 체크인 상태 */
 	let att = $state(/** @type {Record<number, {checkIn:boolean, checkOut:boolean, checkInTime?:string, checkOutTime?:string}>} */ ({}));
-	/** @type {Record<number, 'OPEN'|'AFTERNOON'|'CLOSE'|'NORMAL'>} 오늘 근무의 timeType (마감 인수인계 버튼 노출용) */
-	let timeTypes = $state(/** @type {Record<number, string>} */ ({}));
+	/** 오늘 근무별 마감 여부(closing) - 마감 인수인계 버튼 노출용 */
+	let closings = $state(/** @type {Record<number, boolean>} */ ({}));
 	let resignationPending = $state(false);
 
 	async function load() {
@@ -37,7 +37,7 @@
 			}
 			const today = mine.filter((w) => w.workStartTime?.slice(0, 10) === T);
 			const details = await Promise.all(today.map((w) => getWork($session.storeId, w.workId)));
-			details.forEach((d, i) => (timeTypes[today[i].workId] = d.timeType));
+			details.forEach((d, i) => (closings[today[i].workId] = d.closing));
 		} finally {
 			loading = false;
 		}
@@ -110,7 +110,7 @@
 						<button class="btn p" style="margin-top:20px" onclick={() => doCheckOut(w)}>퇴근할게요</button>
 					{/if}
 				</div>
-				{#if timeTypes[w.workId] === 'CLOSE'}
+				{#if closings[w.workId]}
 					<button class="btn s w" style="margin-bottom:16px" onclick={() => writeHandOver(w.workId)}>마감 인수인계 쓰기</button>
 				{/if}
 			{:else}

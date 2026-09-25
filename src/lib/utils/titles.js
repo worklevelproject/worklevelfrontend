@@ -16,6 +16,7 @@ export const TITLES = {
 	'/staff/schedule': '근무표',
 	'/staff/tasks': '할 일',
 	'/staff/pay': '내 급여',
+	'/staff/welcome': '개인정보 입력',
 	'/staff/notices': '공지 · 인수인계',
 	'/staff/recipes': '레시피',
 	'/staff/me': '내 정보',

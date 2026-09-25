@@ -3,8 +3,7 @@
 	import { session } from '$lib/stores/session.js';
 	import { getMyProfile } from '$lib/api/store.js';
 	import { getMySalary } from '$lib/api/cost.js';
-	import { mock } from '$lib/stores/mock.js';
-	import { deductionFor, deductOf } from '$lib/utils/payroll.js';
+	import { DEDUCTION_TYPE } from '$lib/utils/labels.js';
 	import { won } from '$lib/utils/format.js';
 
 	let profile = $state(/** @type {any} */ (null));
@@ -18,8 +17,8 @@
 		loading = false;
 	});
 
-	const gross = $derived(salary ? salary.totalPay + salary.weeklyAllowanceAmount : 0);
-	const r = $derived(salary ? deductionFor(gross, deductOf($mock, $session.ticketId, profile?.jobRole)) : null);
+	// 공제액·실지급액은 백엔드가 내 공제 방식(deductionType)으로 계산해 준다
+	const r = $derived(salary ? { ded: salary.deductionAmount, net: salary.netPay } : null);
 </script>
 
 <svelte:head><title>내 급여 · WORKLEVEL</title></svelte:head>
@@ -27,7 +26,7 @@
 {#if loading}
 	<div class="empty">불러오는 중…</div>
 {:else}
-	<div class="hdr"><div><div class="eyebrow">이번달 실제 출퇴근 기록 기준 · 공제만 브라우저 설정을 따라요<span class="mock-badge">공제만 추정</span></div><h1>내 급여</h1></div></div>
+	<div class="hdr"><div><div class="eyebrow">이번달 실제 출퇴근 기록 기준</div><h1>내 급여</h1></div></div>
 	<div class="cols">
 		<div>
 			<div class="tiles" style="grid-template-columns:1fr 1fr 1fr">
@@ -39,7 +38,7 @@
 				<div class="tiny muted" style="margin-bottom:8px">이번 달</div>
 				<div class="ln"><span>수당 (기본·야간·휴일)</span><span>{won(salary.totalPay)}</span></div>
 				<div class="ln"><span>주휴수당</span><span>{won(salary.weeklyAllowanceAmount)}</span></div>
-				<div class="ln"><span>공제</span><span>−{won(r.ded)}</span></div>
+				<div class="ln"><span>공제 ({DEDUCTION_TYPE[salary.deductionType] ?? salary.deductionType})</span><span>−{won(r.ded)}</span></div>
 				<div class="ln tot"><span>받을 돈</span><span>{won(r.net)}</span></div>
 			</div>
 			<p class="tiny muted" style="margin-top:12px">출퇴근 기록이 틀리면 내 정보 화면에서 고쳐달라고 요청하세요.</p>

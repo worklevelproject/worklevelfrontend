@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { getMyAlarms, markAlarmRead } from '../api/alarm.js';
+import { getMyAlarms, markAlarmRead, getUnreadAlarmCount, markAllAlarmsRead } from '../api/alarm.js';
 import { session } from './session.js';
 
 // 알림은 한 번 보고 치우는 데이터라 안 읽은 것(readCheck=false)만 들고 있는다. 읽음 처리(누르기·스와이프·×)
@@ -13,10 +13,10 @@ import { session } from './session.js';
 export const notifications = writable(/** @type {any[]} */ ([]));
 /** 아직 안 불러온 안 읽은 알림이 더 있는지 */
 export const hasMoreNotifications = writable(false);
-/** 배지 표시값. 응답에 총개수가 없어 불러온 개수를 쓰고, 더 있으면 "10+"처럼 붙인다(없으면 0). */
-export const unreadCount = derived([notifications, hasMoreNotifications], ([$n, $more]) =>
-	$n.length ? `${$n.length}${$more ? '+' : ''}` : 0
-);
+/** 서버 기준 안 읽은 알림 개수(GET .../alarms/unread-count) */
+const unreadTotal = writable(0);
+/** 배지 표시값(없으면 0) */
+export const unreadCount = derived(unreadTotal, ($n) => $n);
 
 let poller;
 let loadingMore = false;
@@ -34,9 +34,11 @@ export async function refreshNotifications() {
 		ownerKey = key;
 		notifications.set([]);
 		hasMoreNotifications.set(false);
+		unreadTotal.set(0);
 	}
 	try {
-		const page = await getMyAlarms(s.storeId, false);
+		const [page, count] = await Promise.all([getMyAlarms(s.storeId, false), getUnreadAlarmCount(s.storeId)]);
+		unreadTotal.set(count.unreadCount);
 		const boundary = minId(page.content);
 		const tail = page.hasNext ? get(notifications).filter((a) => a.alarmTargetId < boundary) : [];
 		notifications.set([...page.content, ...tail]);
@@ -66,9 +68,25 @@ export async function loadMoreNotifications() {
 	}
 }
 
-/** 읽음 처리된 알림을 목록에서 뺀다 */
+/** 읽음 처리된 알림을 목록에서 빼고 배지를 줄인다 */
 export function removeLocal(alarmTargetId) {
-	notifications.update((list) => list.filter((a) => a.alarmTargetId !== alarmTargetId));
+	let removed = false;
+	notifications.update((list) => {
+		const next = list.filter((a) => a.alarmTargetId !== alarmTargetId);
+		removed = next.length !== list.length;
+		return next;
+	});
+	if (removed) unreadTotal.update((n) => Math.max(0, n - 1));
+}
+
+/** 안 읽은 알림을 모두 읽음 처리한다 */
+export async function readAllNotifications() {
+	const s = get(session);
+	if (!s.storeId) return;
+	await markAllAlarmsRead(s.storeId);
+	notifications.set([]);
+	hasMoreNotifications.set(false);
+	unreadTotal.set(0);
 }
 
 /** 알림 하나를 읽음 처리하고 목록에서 뺀다(누르기·스와이프·× 공통). 먼저 빼서 바로 사라지게 하고,

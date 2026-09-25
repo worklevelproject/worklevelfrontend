@@ -4,7 +4,7 @@
 	import { getWorks } from '$lib/api/work.js';
 	import { getHolidays } from '$lib/api/holiday.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, dateOf } from '$lib/utils/date.js';
-	import { TIME_TYPE, holidayNameOf } from '$lib/utils/labels.js';
+	import { shiftLabel, holidayNameOf } from '$lib/utils/labels.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let weekOffset = $state(0);
@@ -78,7 +78,7 @@
 				{#each worksOf(w.iso) as work (work.id)}
 					<div class="blk" style={work.assigned ? 'outline:1.5px solid var(--carbon)' : ''}>
 						<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>
-						<div class="nm">{TIME_TYPE[work.timeType] ?? '보통'} 근무</div>
+						<div class="nm">{shiftLabel(work)} 근무</div>
 						<div class="rs">
 							{#each work.workers ?? [] as wr, i (wr.ticketId)}{i ? ', ' : ''}<span style={wr.ticketId === $session.ticketId ? 'color:var(--blue)' : ''}>{wr.alias}</span>{:else}아직 없음{/each}
 						</div>

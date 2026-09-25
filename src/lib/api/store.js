@@ -12,7 +12,7 @@ export const getStore = (storeId) => get(`/stores/${storeId}`);
 /** [{ticketId, alias, hourlyWage, availableStartTime, availableEndTime, availableDays, testMember}] - testMember=true가 점주 대리 접근 대상.
  * availableDays는 기본 근무 요일(['MONDAY',...], 미설정이면 null). availableStart/EndTime은 화면에서 더 안 쓴다. */
 export const getEmployees = (storeId) => get(`/stores/${storeId}/employees`);
-/** 내 ticket 정보(직무/시급/근무시작일 등). jobRole==='OWNER'면 이 매장의 점주. */
+/** 내 ticket 정보(직무/시급/근무시작일 등). jobRole==='OWNER'면 이 매장의 점주. privacyConsented(회원 단위 개인정보 동의 여부)로 직원 화면 진입을 막는다 */
 export const getMyProfile = (storeId) => get(`/stores/${storeId}/me`);
 export const updateMyAlias = (storeId, alias) => patch(`/stores/${storeId}/alias`, { alias });
 
@@ -28,9 +28,10 @@ export const getEmployeeDetail = (storeId, ticketId) =>
 	get(`/stores/${storeId}/owner/employees/${ticketId}`);
 export const removeEmployee = (storeId, ticketId) =>
 	del(`/stores/${storeId}/owner/employees/${ticketId}`);
-/** body: {jobRole?:'MANAGER'|'STAFF'|'PART_TIME', hourlyWage?, workStartDate?, availableDays?:DayOfWeek[]} - 안 보낸 필드는 유지, availableDays를 []로 보내면 요일을 비운다 */
+/** body: {jobRole?:'MANAGER'|'STAFF'|'PART_TIME', hourlyWage?, workStartDate?, availableDays?:DayOfWeek[], deductionType?:'TAX_3_3'|'SOCIAL_INSURANCE'|'NONE'} - 안 보낸 필드는 유지, availableDays를 []로 보내면 요일을 비운다.
+ * 상세 응답엔 deductionType(실제 적용값), privacyConsented, personalInfo{realName, phone, birthDate}(동의·입력했을 때만)도 온다 */
 export const updateEmployeeInfo = (storeId, ticketId, body) =>
 	patch(`/stores/${storeId}/owner/employees/${ticketId}`, body);
-/** 매장 이름/주소/전화번호. {storeId, name, address, tel} */
+/** 매장 이름/주소/전화번호, 수당 설정, 운영 시간대(weekdayOpenTime/weekdayCloseTime/weekendOpenTime/weekendCloseTime - 'HH:mm:ss', 미설정이면 null, 주말은 공휴일 포함) */
 export const getStoreConfig = (storeId) => get(`/stores/${storeId}/owner/config`);
 export const updateStoreConfig = (storeId, body) => patch(`/stores/${storeId}/owner/config`, body);

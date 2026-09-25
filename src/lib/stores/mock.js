@@ -75,14 +75,6 @@ export function saveSalesDay(iso, data) {
 	});
 }
 
-// ── 직원별 공제 방식(백엔드에 공제 도메인이 없어 이 브라우저에만 저장) ──
-export function setDeduct(ticketId, deduct) {
-	mock.update((m) => {
-		m.deductByTicket = { ...(m.deductByTicket || {}), [ticketId]: deduct };
-		return m;
-	});
-}
-
 export function getMock() {
 	return get(mock);
 }

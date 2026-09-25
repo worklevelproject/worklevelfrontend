@@ -1,6 +1,7 @@
 <script>
 	import { session } from '$lib/stores/session.js';
-	import { notifications, hasMoreNotifications, loadMoreNotifications, dismissNotification } from '$lib/stores/notifications.js';
+	import { notifications, hasMoreNotifications, loadMoreNotifications, dismissNotification, readAllNotifications, unreadCount } from '$lib/stores/notifications.js';
+	import { showToast } from '$lib/stores/toast.js';
 	import { openAlarm } from '$lib/utils/alarmNav.js';
 
 	/** 안 읽은 알림 목록. 누르면 해당 화면으로 가고, 오른쪽으로 밀거나 ×를 누르면 읽음 처리돼 사라진다.
@@ -28,6 +29,15 @@
 		else if (dx < 6) openAlarm(n, $session.storeId, owner); // 거의 안 밀었으면 클릭으로 본다
 	}
 
+	async function readAll() {
+		try {
+			await readAllNotifications();
+			showToast('모두 읽음으로 바꿨어요');
+		} catch (e) {
+			showToast(e?.message || '처리하지 못했어요');
+		}
+	}
+
 	async function more() {
 		loadingMore = true;
 		try {
@@ -38,6 +48,12 @@
 	}
 </script>
 
+{#if $unreadCount}
+	<div style="max-width:720px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+		<span class="tiny muted">안 읽은 알림 {$unreadCount}개</span>
+		<button class="btn s sm" onclick={readAll}>모두 읽음</button>
+	</div>
+{/if}
 <div class="card w" style="max-width:720px;padding:4px 20px">
 	{#each $notifications as n (n.alarmTargetId)}
 		{@const dx = drag?.id === n.alarmTargetId ? drag.dx : 0}

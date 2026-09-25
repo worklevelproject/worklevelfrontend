@@ -11,7 +11,6 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { fmt, toHM, rel } from '$lib/utils/date.js';
-	import { TIME_TYPE } from '$lib/utils/labels.js';
 
 	/** 공지 하나를 펼쳤을 때 보이는 본문 영역: 읽은 사람, 근무 제안 슬롯(선착순 지원)과 댓글/답글.
 	 * 펼치면 상세를 조회하는데, 백엔드가 그 시점에 읽음으로 기록하고 읽은 사람 목록(read.readers)을 준다.
@@ -131,7 +130,7 @@
 					{@const full = sl.appliedCount >= sl.capacity}
 					<div class="row">
 						<div class="main">
-							<div class="t">{fmt(sl.startTime.slice(0, 10))} <span class="num">{toHM(sl.startTime)}–{toHM(sl.endTime)}</span> · {TIME_TYPE[sl.timeType] ?? '보통'}</div>
+							<div class="t">{fmt(sl.startTime.slice(0, 10))} <span class="num">{toHM(sl.startTime)}–{toHM(sl.endTime)}</span>{sl.closing ? ' · 마감' : ''}</div>
 							<div class="s">{sl.appliedCount}/{sl.capacity}명 지원</div>
 						</div>
 						{#if canApply}

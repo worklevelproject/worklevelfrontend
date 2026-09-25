@@ -130,5 +130,5 @@ export function seedMock() {
 
 	const plan = 'beta';
 
-	return { notices, handovers, candidates, sales, team, paySettings, deductByTicket: {}, attSettings, notifSettings, plan };
+	return { notices, handovers, candidates, sales, team, paySettings, attSettings, notifSettings, plan };
 }

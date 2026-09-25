@@ -5,6 +5,10 @@ import { get, apiFetch } from './client.js';
 // 총개수(totalCount)는 내려오지 않는다.
 export const getMyAlarms = (storeId, readCheck, cursor) =>
 	get(`/stores/${storeId}/alarms`, { readCheck, cursor });
+/** 안 읽은 알림 개수 {unreadCount} (배지용) */
+export const getUnreadAlarmCount = (storeId) => get(`/stores/${storeId}/alarms/unread-count`);
+/** 안 읽은 알림 모두 읽음 처리 {updatedCount} */
+export const markAllAlarmsRead = (storeId) => apiFetch(`/stores/${storeId}/alarms/read-all`, { method: 'PATCH' });
 /** 상세 조회만으로는 읽음 처리되지 않는다 - markAlarmRead를 따로 부른다 */
 export const getAlarmDetail = (storeId, alarmTargetId) =>
 	get(`/stores/${storeId}/alarms/${alarmTargetId}`);

@@ -24,7 +24,7 @@ export const updateNoticeComment = (storeId, noticeId, commentId, body) =>
 	patch(`/stores/${storeId}/notices/${noticeId}/comments/${commentId}`, body);
 
 // ── 점주 전용 ────────────────────────────────────────────────
-/** body: {title, content, type?:'NORMAL'|'WORK_PROPOSAL', slots?:[{startTime, endTime, timeType?, capacity}]} */
+/** body: {title, content, type?:'NORMAL'|'WORK_PROPOSAL', slots?:[{startTime, endTime, timeType(필수, 서버는 CLOSE인지만 봐서 칸의 closing으로 저장), capacity}]} */
 export const createNotice = (storeId, body) => post(`/stores/${storeId}/owner/notices`, body);
 export const updateNotice = (storeId, noticeId, body) =>
 	patch(`/stores/${storeId}/owner/notices/${noticeId}`, body);

@@ -2,22 +2,16 @@
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
 	import { getStoreSalary } from '$lib/api/cost.js';
-	import { getEmployees } from '$lib/api/store.js';
-	import { mock } from '$lib/stores/mock.js';
-	import { deductionFor, deductOf, DEDUCT_LABEL } from '$lib/utils/payroll.js';
+	import { DEDUCTION_TYPE } from '$lib/utils/labels.js';
 	import { won } from '$lib/utils/format.js';
 
 	let list = $state(/** @type {any[]} */ ([]));
-	/** ticketId → jobRole (공제 방식 기본값용) */
-	let roles = $state(/** @type {Record<number, string>} */ ({}));
 	let loading = $state(true);
 	let error = $state('');
 
 	onMount(async () => {
 		try {
-			const [sal, emp] = await Promise.all([getStoreSalary($session.storeId), getEmployees($session.storeId).catch(() => [])]);
-			list = sal;
-			roles = Object.fromEntries(emp.map((e) => [e.ticketId, e.jobRole]));
+			list = await getStoreSalary($session.storeId);
 		} catch (e) {
 			error = e?.message || '불러오기에 실패했어요';
 		} finally {
@@ -25,12 +19,9 @@
 		}
 	});
 
+	// 공제액·실지급액까지 백엔드 계산값(직원별 공제 방식 deductionType 적용)
 	const rows = $derived(
-		list.map((s) => {
-			const gross = s.totalPay + s.weeklyAllowanceAmount;
-			const deduct = deductOf($mock, s.ticketId, roles[s.ticketId]);
-			return { s, gross, deduct, ...deductionFor(gross, deduct) };
-		})
+		list.map((s) => ({ s, gross: s.totalPay + s.weeklyAllowanceAmount, deduct: s.deductionType, ded: s.deductionAmount, net: s.netPay }))
 	);
 	const total = $derived(
 		rows.reduce((a, { gross, ded, net }) => ({ gross: a.gross + gross, ded: a.ded + ded, net: a.net + net }), { gross: 0, ded: 0, net: 0 })
@@ -42,8 +33,7 @@
 <div class="hdr">
 	<div>
 		<div class="eyebrow">
-			이번달 실제 출퇴근 기록 기준 수당(기본·야간·휴일)·주휴수당 합계예요. 공제만 백엔드에 없어 직원 상세에서 정한 공제 방식(이 브라우저에 저장)을 따라요.
-			<span class="mock-badge">공제만 추정</span>
+			이번달 실제 출퇴근 기록 기준 수당(기본·야간·휴일)·주휴수당 합계예요. 공제는 직원 상세에서 정한 직원별 공제 방식으로 계산돼요.
 		</div>
 		<h1>급여</h1>
 	</div>
@@ -69,7 +59,7 @@
 				<div class="amt">{won(net)}</div>
 				<div class="ln"><span>수당 (기본·야간·휴일)</span><span>{won(s.totalPay)}</span></div>
 				<div class="ln"><span>주휴수당</span><span>{won(s.weeklyAllowanceAmount)}</span></div>
-				<div class="ln"><span>공제 ({DEDUCT_LABEL[deduct]})</span><span>−{won(ded)}</span></div>
+				<div class="ln"><span>공제 ({DEDUCTION_TYPE[deduct] ?? deduct})</span><span>−{won(ded)}</span></div>
 				<div class="ln tot"><span>실지급</span><span>{won(net)}</span></div>
 			</div>
 		{:else}
