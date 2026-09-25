@@ -46,7 +46,7 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 로그인 | ✅ | `GET /oauth2/authorization/kakao` → 카카오 → `/login/oauth2/code/kakao`, `GET /oauth2/authorization/google` → 구글 → `/login/oauth2/code/google` | 백엔드에 구글 OAuth가 새로 생겨 카카오 버튼 아래 구글 버튼을 추가했다(`src/lib/api/auth.js`의 `goToGoogleLogin`). 구글은 로그인마다 동의 화면을 다시 띄워 refresh token을 갱신하지만, 프론트 입장에서는 카카오와 흐름이 동일(콜백에 accessToken 쿼리스트링)해서 별도 처리 없음 |
-| 매장 만들기 | ✅ | `POST /stores` | 새 화면(프로토타입엔 없던 온보딩). 매장을 만들면 테스트 멤버 5명이 함께 생긴다. 초대코드 참여(`POST /stores/join`)는 UI에서 뺐다(직원은 테스트 멤버로 대신 본다) |
+| 시작 화면(매장 고르기·참여·만들기) | ✅ | `GET /stores/me/tickets`, `POST /stores/join`, `POST /stores` | 왼쪽 검은 소개 패널 없이 한 화면에 "내 매장 / 초대 코드로 참여(직원) / 매장 만들기(점주)"를 둔다. 사이드바 WORKLEVEL 로고를 누르면 이 화면으로 온다. 매장을 만들면 테스트 멤버 5명이 함께 생긴다. 직원 가입은 초대 코드로만 한다 |
 | 테스트 멤버로 보기(신규) | ✅ | `GET .../employees`(목록), 이후 `/owner`가 아닌 모든 `/stores/{id}/**` 요청에 `X-Acting-Ticket-Id: {테스트 멤버 ticketId}` 헤더 | 이 프론트는 점주 혼자 쓰는 테스트 도구라 **직원 가입 경로(초대코드 참여, 초대코드 보기)는 없앴고**, 개인 직원 화면(`/staff/*`)은 점주가 테스트 멤버(`테스트직원1~5`, `Provider.TEST`)로 대리 접근해 보는 용도로만 쓴다. 사이드바 상단 "보는 사람" 칩(`ViewSwitcher`)에서 `점주 (나)` / 테스트직원N을 한 번 클릭으로 오가고, 이때 같은 종류의 화면으로 이동한다(근무표↔근무표, 공지↔공지, 급여↔내 급여 등 — `lib/utils/viewMap.js`). 멤버가 바뀌면 화면을 새로 마운트해 그 사람 기준으로 다시 불러온다. 대리 접근 중엔 상단에 "점주로 돌아가기" 배너, 계정 탈퇴는 숨김(`/members/me`엔 헤더가 안 붙어 점주 본인 계정이 지워지므로). 헤더는 `lib/api/acting.js`가 관리해 `client.js`가 자동으로 붙이며(점주 경로 `/owner/`엔 붙이면 400이라 제외) 탭 단위 sessionStorage에 저장. 직원 목록 응답의 `testMember: true`로 가려낸다(`KNOWN_GAPS.md` #5) |
 
 ## 점주 화면 (`/owner/*`) — v8 4메뉴 구조
@@ -58,25 +58,25 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 오늘 | ✅ | `GET .../owner/dashboard/attendance`, `GET .../owner/work-assignments/attendance-corrections`, `GET .../owner/employees/stats`, `GET .../notices`, `GET .../hand-overs`, `GET .../owner/works/salary` | 매출 카드만 🧪 목업(`lib/stores/mock.js`, 매출 도메인 없음). 공지·마감 노트·이번 달 급여 예상 카드는 실제 API |
-| ㄴ 다음 주 근무표 상태 카드(신규) | ✅ | `GET .../owner/works/weekly`(다음 주 월요일 기준 호출) | 신규 API 없이 기존 근무표 조회 재사용. 근무가 0건이면 "초안 만들기", 있으면 건수만 표시(수락 대기 상태는 백엔드에서 사라짐) |
+| 오늘 | ✅ | `GET .../owner/dashboard/attendance`, `GET .../owner/work-assignments/attendance-corrections`, `GET .../owner/employees/stats`, `GET .../notices`, `GET .../hand-overs`, | 매출 카드만 🧪 목업(`lib/stores/mock.js`, 매출 도메인 없음). 공지·마감 노트는 실제 API. 이번 달 급여 예상 카드는 뺐다(피드백) |
+| ㄴ 다음 주 근무표 상태 카드(신규) | ✅ | `GET .../owner/works/weekly`(다음 주 월요일 기준 호출) | 신규 API 없이 기존 근무표 조회 재사용. 근무가 0건이면 "비어 있어요", 있으면 건수만 표시(누르면 근무표로 이동)(수락 대기 상태는 백엔드에서 사라짐) |
 | ㄴ 되는 시간 제출률 배너 | ⛔(제거) | — | 백엔드가 직원 되는 시간 API를 삭제해(`4be1f33`) 배너도 제거. "거절된 근무" 알림 카드도 수락/거절 프로세스와 함께 제거 |
 
 ### 근무 (근무표 + 출퇴근)
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 근무표 | ✅ | `GET .../owner/works/weekly`, `POST .../owner/works`, `PATCH/DELETE .../owner/works/{id}` | 프로토타입의 매트릭스뷰·월간캘린더뷰는 생략(주간 보드뷰만). 근무 생성 요청은 `{timeType?, startTime, endTime, participantTicketIds}`뿐(제목·반복·업무내용 없음)이고 만들면 참여자에게 바로 배정된다 · 응답의 날짜별 `isHoliday/holidayName`으로 법정공휴일 날짜를 빨갛게 표시하고(토/일 `주말`은 제외), 근무 넣기 화면은 `GET /holidays?from=&to=`(매장 무관 공개 API, storeId 없음)로 그 날이 휴일이면 휴일수당 안내를 띄운다 |
+| 근무표 | ✅ | `GET .../owner/works/weekly`, `POST .../owner/works`, `PATCH/DELETE .../owner/works/{id}`, `POST/PATCH/DELETE .../owner/work-series` | 주간 보드뷰만. 헤더는 지난주/다음 주와 "근무 넣기". 날짜 법정공휴일은 빨갛게 표시하고, 날짜 아래에 기본 근무 요일 직원을 보여준다. **근무 넣기**: 요일(여러 개) → 시간 → 직원 → 반복(이번 주만 / 매주 반복 + 종료일). 시간대는 고르지 않는다. 매장 운영 시간대(평일 / 주말·공휴일)와 비교해 요청 `timeType`을 정한다(닫는 시각까지 = CLOSE, 여는 시각부터 = OPEN, 12시 이후 = AFTERNOON, 그 밖 = NORMAL). 서버는 CLOSE인지만 봐서 `closing`으로 저장한다(`lib/utils/storeHours.js`). 매주 반복은 반복 근무 규칙(`work-series`)으로 만든다. 서버가 4주 치를 먼저 만들고 스케줄러가 이어 채운다. 평일/주말 차이로 마감 여부가 갈리는 요일 조합이면 규칙을 나눠 만든다. **근무 상세**: 시간 변경(`PATCH .../works/{id}`의 startTime/endTime, 참여자에게 변경 알림), 참여자 변경, 빼기. 반복 근무(`seriesId` 있음)면 "이 근무만 / 반복 근무 전체"를 고르고, 전체면 `PATCH .../work-series/{id}` 또는 `DELETE .../work-series/{id}?from=그날`로 처리한다. 근무 칸 표시는 `closing`이면 마감(파란색), 아니면 시작 시각으로 오전/오후를 나누고, 반복 근무엔 "매주"를 붙인다 |
 | 출퇴근 | ✅ | `GET .../owner/dashboard/attendance`, 정정 승인/거절 API, `POST .../owner/work-assignments/{id}/no-show/revive`(신규) | 점주가 대신 출근/퇴근 처리하던 기능은 삭제 — 실제 출퇴근은 본인만 가능(백엔드 제약). 결근(NO_SHOW) 확정 건은 직원이 스스로 정정을 제안할 수 없어(체크인 자체가 막힘) 점주가 출퇴근 화면에서 "결근 복구" 버튼으로 실제 출퇴근 시각을 직접 확정해 넣는다(`ReviveNoShowDrawer`) · 항목의 `isHoliday/holidayName`이 true면 이름 옆에 휴일 태그(`주말` 포함)를 붙인다 |
-| 자동 근무표 초안(신규) | ✅(클라이언트 로직) | `GET .../owner/works/weekly`, `GET .../owner/time-templates`, `GET .../owner/employees/stats`, 확정 시 `POST .../owner/works` | 백엔드에 대응 도메인 없음 — `lib/utils/scheduleDraft.js`가 API 응답을 조합해 순수 클라이언트 휴리스틱으로 후보 배정을 계산(랭킹: 지난주 동일인 → 누적시간 → 정시출근율, 위험플래그: 15h 미만/40h 초과/6일 연속. 되는 시간 제출 API가 삭제돼 제출 여부·선호 시간대 랭킹은 없어졌다). 프로토타입의 휴가(leave) 차단 필터는 백엔드에 휴가 도메인이 없어 제외. "확정"은 기존 `createWorks`(배치 생성) 그대로 호출 |
+| 자동 근무표 초안 | ❌ 삭제 | — | 피드백으로 기능 자체를 뺐다(`ScheduleDraftDrawer`·`scheduleDraft.js` 삭제) |
 
 ### 직원 (직원 + 급여)
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
-| 직원 | ✅ | `GET .../owner/employees/stats`, `GET .../owner/invite-code` | |
-| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류 행을 누르면 `ContractDocViewDrawer`가 `GET .../contract-documents/{id}` → `GET /s3-files/{s3FileId}/download-presign`으로 파일을 보여준다(사장님·직원 본인 모두 열람 가능, 이미지가 아니면 새 탭 열기) · 등록은 직원 본인만 가능(백엔드 권한 설계) · 직무는 매니저/직원/파트타임(`PART_TIME`), 기본 근무 요일(`availableDays`)을 요일 칩으로 편집한다. 예전 기본 가능 시작/종료 입력은 화면에서 뺐다(백엔드 필드는 남아 있음). 근무표 시간표는 날짜 아래에 그 요일이 기본 근무 요일인 직원을 띄우고, 근무 넣기에서도 그 직원을 앞에 올린다 |
-| 급여 | ✅(공제만 추정) | `GET .../owner/works/salary` | 직원별 이번달 실제 수당(기본·야간·휴일)·주휴수당 합계를 그대로 보여줌(`totalPay + weeklyAllowanceAmount`로 합산 — 이미 정확히 반영돼 있음, 확인 완료). 공제(3.3%/4대보험)만 백엔드 도메인이 없어 `lib/utils/payroll.js`의 `deductionFor`로 브라우저 설정을 따름 |
+| 직원 | ✅ | `GET .../owner/employees/stats`, `GET .../owner/invite-code` | "초대 코드" 버튼을 누르면 코드를 보여주고 클립보드에 복사한다. |
+| 직원 상세 | ✅ | `GET/PATCH .../owner/employees/{ticketId}`, `GET /tickets/{ticketId}/contract-documents`, `DELETE .../owner/employees/{ticketId}`, `GET .../owner/works/salary` | 서류 행을 누르면 `ContractDocViewDrawer`가 `GET .../contract-documents/{id}` → `GET /s3-files/{s3FileId}/download-presign`으로 파일을 보여준다(사장님·직원 본인 모두 열람 가능, 이미지가 아니면 새 탭 열기) · 등록은 직원 본인만 가능(백엔드 권한 설계) · 직무는 매니저/직원/파트타임(`PART_TIME`), 기본 근무 요일(`availableDays`)을 요일 칩으로 편집한다. 예전 기본 가능 시작/종료 입력은 화면에서 뺐다(백엔드 필드는 남아 있음). 근무표 시간표는 날짜 아래에 그 요일이 기본 근무 요일인 직원을 띄우고, 근무 넣기에서도 그 직원을 앞에 올린다 · 공제 방식(`deductionType`: TAX_3_3/SOCIAL_INSURANCE/NONE)을 `PATCH .../owner/employees/{ticketId}`로 바로 저장한다. 고르지 않으면 직무 기준 기본값. 개인정보(`privacyConsented`, `personalInfo{realName, phone, birthDate}`) 카드를 보여준다. 퇴사·직원 제외 때 시작 전 근무 배정과 반복 근무 참여는 백엔드가 같은 트랜잭션에서 정리한다 |
+| 급여 | ✅ | `GET .../owner/works/salary` | 직원별 이번달 실제 수당(기본·야간·휴일)·주휴수당 합계를 그대로 보여줌(`totalPay + weeklyAllowanceAmount`로 합산 — 이미 정확히 반영돼 있음, 확인 완료). 공제액(`deductionAmount`)·실지급액(`netPay`)은 직원별 공제 방식(`deductionType`)으로 백엔드가 계산한 값을 그대로 쓴다(프론트 공제 계산 `payroll.js` 삭제) |
 | 사람 구하기(보조 링크) | 🧪 | 없음 | 직원 화면 안쪽 링크로 데모용 유지, 매출 도메인처럼 백엔드 지원 없음 |
 
 ### 매장 (할 일 + 공지·인수인계 + 레시피 + 매출)
@@ -84,23 +84,23 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 할 일 | ✅ | `GET .../tasks`, `GET .../tasks/{id}`, `POST/PATCH/DELETE .../owner/tasks`, `PATCH .../tasks/{taskId}/complete`(직원 완료) | TaskResponse가 Task로 병합돼(백엔드 PR #57) 담당자(`ticketId`)·마감(`dueDate`, 필수)·상태(`PENDING/COMPLETE/FAIL`)·응답이 task 하나에 다 있다. 만들 때 "누구에게 + 언제까지(날짜+시간)"를 정하고, 재배정 API는 없어 삭제 후 재생성. 승인/반려 없이 담당 직원이 스스로 완료 처리하며, 마감을 넘겨 제출하면 FAIL(‘기한 넘김’). PENDING만 삭제 가능. PHOTO 응답은 CDN 연결돼 점주가 `TaskDetailDrawer`에서 실제 사진을 봄 |
-| 공지 · 인수인계 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST/PATCH/DELETE .../owner/notices`, `GET/POST .../notices/{id}/comments`, `PATCH .../comments/{commentId}`; `GET .../hand-overs`, `POST/PATCH/DELETE .../hand-overs/{id}` | 목업에서 실제 API로 교체. pin·읽음 추적 필드는 백엔드에 없어 빠짐. 마감(CLOSE) 근무 1건당 인수인계 1개만 가능(백엔드 제약) |
-| 레시피 | ✅ | `GET/POST/PATCH/DELETE .../manual-items` (category=RECIPE) | 메뉴 사진 업로드·표시 연결됨 — `uploadFile(file,'PROTECTED')`로 올리고 `thumbnailS3FileId`로 저장, `ProtectedThumb`로 CDN 통해 표시(`KNOWN_GAPS.md` #4). 버전(v)·"안 본 직원" 추적 없음 |
-| 매출 | 🧪 | 없음 | 매출 도메인 없음 |
+| 공지 · 인수인계 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST/PATCH/DELETE .../owner/notices`, `GET/POST .../notices/{id}/comments`, `PATCH .../comments/{commentId}`; `GET .../hand-overs`, `GET .../hand-overs/{id}`, `POST/PATCH/DELETE .../hand-overs/{id}` | pin은 백엔드에 없어 빠짐. **읽음**: 공지·인수인계 모두 목록 응답의 `read.readCount`로 행마다 "읽음 N명"을 바로 보여주고, 펼치면 상세 조회(=그 시점에 읽음 기록)의 `read.readers`로 읽은 사람·시각을 보여준다. 펼친 뒤 읽음 수는 상세 응답으로 새로고침 없이 갱신한다(`NoticeBody`, `HandOverList`). 마감(CLOSE) 근무 1건당 인수인계 1개만 가능(백엔드 제약). 탭 이름은 "마감 노트" 대신 "인수인계" |
+| 레시피 | ✅ | `GET/POST/PATCH/DELETE .../manual-items` (category=RECIPE) | 상세는 보기 화면이 기본이고 "수정"을 눌러야 입력 폼이 열린다 · 메뉴 사진 업로드·표시 연결됨 — `uploadFile(file,'PROTECTED')`로 올리고 `thumbnailS3FileId`로 저장, `ProtectedThumb`로 CDN 통해 표시(`KNOWN_GAPS.md` #4). 버전(v)·"안 본 직원" 추적 없음 |
+| 매출 | 🧪 | 없음 | 매출 도메인 없음 · 날짜를 누르면 고르고, 매출이 없는 지난날·오늘이면 바로 넣기 창을 연다(오른쪽 "넣기" 패널은 뺐고, 매출이 있는 날만 상세 카드가 뜬다) · 넣기 창 가로 스크롤을 없앴다 |
 
 ### 그 외 (메뉴 그룹 밖)
 
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 퇴사 처리 | ✅ | `POST/GET .../owner/employees/{ticketId}/resignation`(시작/재개·조회), `PATCH .../resignation/type`(구분 확정), `PATCH .../resignation/evaluation`(평가 중간저장), `POST .../resignation/evaluation/send`(전송), `GET .../resignation`·`POST .../resignation/confirm`·`POST .../resignation/fix-request`(직원 본인) | 직원 상세의 "퇴사처리" 버튼 → `/owner/staff/{ticketId}/resignation` 전용 화면(정량 지표 스냅샷 → 퇴사 구분 → 7문항 평가 → 전송)에서 4단계를 그대로 따라간다. 직원 쪽은 `/staff/resignation`에서 확인/수정요청(오늘 화면에 배너로 진입). 직원 상세의 "내보내기"(즉시 비활성화, `DELETE .../owner/employees/{ticketId}`) 버튼은 제거해 퇴사 처리만 남겼다(API 함수 `removeEmployee`는 남겨 둠) |
-| 마이페이지(신규) | ✅ | `GET /members/me/passports`, `PATCH /members/me/passports/{resignationProcessId}/public` | 매장(storeId) 무관 회원 단위 화면(task.md 1) - `/owner/mypage`·`/staff/mypage` 둘 다 같은 `MyPassportSection.svelte`를 쓴다. 사이드바 하단에 "마이페이지" 고정 노출. 퇴사 확정(APPROVED)된 workPassport만 목록으로 뜨고, 카드마다 공개/비공개 토글이 있다 |
+| 마이페이지(신규) | ✅ | `GET /members/me/passports`, `PATCH /members/me/passports/{resignationProcessId}/public` | 매장(storeId) 무관 회원 단위 화면(task.md 1) - `/staff/mypage`만 `MyPassportSection.svelte`로 보여준다(점주 화면의 `/owner/mypage`는 필요 없어 뺐다). 직원 사이드바 하단에만 "마이페이지" 노출. 퇴사 확정(APPROVED)된 workPassport만 목록으로 뜨고, 카드마다 공개/비공개 토글이 있다 |
 | 직원 상세 · workPassport 보기(신규) | 🧪 | 없음(연결 예정: `GET /members/{memberId}/passports`) | task.md 2 - "다른 사람의 passport 조회는 점주화면에서만" 요구사항의 진입점만 만들어둠(`PassportViewDrawer.svelte`). 직원 응답에 memberId가 없어 실제 API는 아직 못 붙였다 - `KNOWN_GAPS.md` #8 |
 | 직원 상세 · 차후 적용 시급(신규) | ✅ | `GET .../owner/employees/{ticketId}`(`pendingHourlyWage`/`pendingHourlyWageApplyDate`) | task.md 3 - 시급을 바꾸면 백엔드가 다음주 월요일 적용으로 미뤄두는데(`HourlyWageChange`), 그 pending 값을 응답에 함께 내려줘 "현재 적용 중 / N월 N일부터 적용 예정"으로 보여준다 |
-| 알림 | ✅ | `GET .../alarms`, `GET .../alarms/{id}` | |
+| 알림 | ✅ | `GET .../alarms?readCheck=false&cursor=`(커서, 10건), `GET .../alarms/unread-count`, `PATCH .../alarms/{id}/read`, `PATCH .../alarms/read-all` | 알림은 한 번 보고 치우는 데이터라 **안 읽은 것만** 보여준다. 누르면 해당 화면으로 가며 읽음 처리되고, 오른쪽으로 밀거나 ×를 누르면 이동 없이 읽음 처리돼 목록에서 사라진다. "모두 읽음" 버튼도 있다(`NotificationList`, `stores/notifications.js`). 읽음 처리는 로딩 오버레이 없이 보내고, 실패하면 목록을 다시 받는다. "더보기"는 들고 있는 가장 작은 `alarmTargetId`를 `cursor`로 넘긴다. 배지는 `unread-count`. 상세 조회(`GET .../alarms/{id}`)는 읽음 처리를 안 해서 쓰지 않는다 |
 | 설정 · 매장 정보 | ✅ | `GET/PATCH .../owner/config` | |
-| 설정 · 근무 시간대 | ✅ | `GET/PUT .../owner/time-templates` | |
-| 설정 · 근무 운영 설정 | ✅ | `GET/PUT .../owner/time-config` | `minStaff`, `responseDeadlineMinutes`만(되는 시간 마감 요일은 삭제됨) |
-| 설정 · 수당 계산 | ✅ | `GET/PATCH .../owner/config`(`applyWeeklyHolidayAllowance/NightAllowance/HolidayAllowance`) | 주휴·야간·휴일수당 적용 여부 토글. 급여 지급일·공제 방식은 여전히 🧪 목업 |
+| 설정 · 매장 정보 > 운영 시간대 | ✅ | `GET/PATCH .../owner/config`(`weekdayOpenTime/weekdayCloseTime/weekendOpenTime/weekendCloseTime`) | 평일 / 주말·공휴일의 여는·닫는 시각. 닫는 시각이 여는 시각보다 이르면 자정을 넘겨 닫는 것이다. 아직 안 정했으면(null) 기본값(평일 09–22, 주말 10–22)으로 보여주고 근무 종류 판단에도 쓴다. 근무 넣기·근무 제안 칸·근무 시간 변경의 `timeType`을 이 시간으로 정한다. 시간대 템플릿(`.../owner/time-templates`)은 화면에서 더 쓰지 않아 래퍼를 지웠다 |
+| 설정 · 근무 운영 설정 | ⛔(화면에서 뺌) | 없음 | 피드백으로 메뉴를 뺐다(`timeConfig.js` 래퍼 삭제) |
+| 설정 · 수당 계산 | ✅ | `GET/PATCH .../owner/config`(`applyWeeklyHolidayAllowance/NightAllowance/HolidayAllowance`) | 주휴·야간·휴일수당 적용 여부 토글 · 급여 규칙은 급여 지급일만 남겼다(🧪). 연장수당·공제 방식(직원별로 옮김)은 뺐다. "지급일 3일 전·1일 전·당일 알림" 문구는 결정대로 문구만 둔다(실제 알림 없음) |
 | 설정 · 알림 | 🧪 | 없음 | 알림 발송 자체(outbox/RabbitMQ)는 있지만, 항목별 on/off 설정 API는 없음 |
 | 설정 · 팀/권한 | ⛔(만들지 않음) | 없음 | 매니저 세부 권한 개념이 백엔드에 없음 |
 | 설정 · 요금제 | ⛔(만들지 않음) | 없음 | 베타 단계라 과금 개념 없음 |
@@ -111,13 +111,14 @@ Task/Notice/HandOver/Alarm/Work/WorkRequest/ManualItem/직원 통계(EmployeeSta
 | 화면 | 상태 | 연동 API | 차이 |
 |---|---|---|---|
 | 오늘 | ✅ | `GET .../work-assignments/mine`, `POST .../works/{id}/check-in\|check-out`, `GET .../attendances/mine`(신규) | 체크인/체크아웃 직후 낙관적 갱신은 그대로 두되, 로드 시 `GET .../attendances/mine`(오늘 날짜)을 진실 소스로 조회해 새로고침해도 상태가 유지되도록 함(`KNOWN_GAPS.md` 옛 #2 해소). 로드 시 `GET .../resignation`도 함께 찔러보고(대개 404, 조용히 무시), 점주가 3단계까지 보낸 퇴사처리가 있으면 "확인하기" 배너로 `/staff/resignation`을 안내 |
-| 근무표 | ✅ | `GET .../works?year=&month=` | 동료 이름은 안 보이고 내 근무 여부만 `assigned`로 제공 — API 제약 · 근무 목록 응답엔 휴일 정보가 없어 `GET /holidays?from=&to=`(매장 무관 공개 API, 이번 주 월~일)로 따로 받아 그 날짜를 빨갛게 표시한다 |
+| 근무표 | ✅ | `GET .../works?year=&month=` | 목록 응답의 `workers`로 동료 이름까지 보여준다(내 이름은 파란색) · 내 근무는 `assigned`로 테두리 표시 · 근무 목록 응답엔 휴일 정보가 없어 `GET /holidays?from=&to=`(매장 무관 공개 API, 이번 주 월~일)로 따로 받아 그 날짜를 빨갛게 표시한다 |
 | 할 일 | ✅ | `GET .../tasks`(내게 배정된 것만 클라이언트에서 필터), `PATCH .../tasks/{taskId}/complete` | 승인/반려 없이 직원이 스스로 완료 처리. 마감 초과 제출은 FAIL |
-| 내 급여 | ✅(공제만 추정) | `GET .../works/salary/mine` | 이번달 실제 수당·주휴수당 합계(`totalPay + weeklyAllowanceAmount`). 공제만 브라우저 설정 추정 |
-| 공지 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST .../notices/{id}/slots/{slotId}/apply`, 댓글 API | 근무 제안(`WORK_PROPOSAL`) 공지는 슬롯을 선착순으로 지원하면 그 자리에서 내 근무로 확정된다. 댓글은 1단계 @멘션 답글, 수정은 본인 것만(삭제 API 없음) |
+| 내 급여 | ✅ | `GET .../works/salary/mine` | 이번달 실제 출퇴근 기록 기준 수당·주휴수당, 내 공제 방식(`deductionType`)으로 백엔드가 계산한 공제액·실지급액 |
+| 공지 · 인수인계 | ✅ | `GET .../notices`, `GET .../notices/{id}`, `POST .../notices/{id}/slots/{slotId}/apply`, 댓글 API, `GET .../hand-overs`, `GET .../hand-overs/{id}` | 근무 제안(`WORK_PROPOSAL`) 공지는 슬롯을 선착순으로 지원하면 그 자리에서 내 근무로 확정된다. 댓글은 1단계 @멘션 답글, 수정은 본인 것만(삭제 API 없음) · 공지·인수인계 탭. 목록의 `read.readCheck`가 false면 "안 읽음" 표시, 펼치면(상세 조회) 읽음 기록되고 표시가 바로 꺼진다. 인수인계에도 "읽음 N명"과 펼친 뒤 읽은 사람 목록 |
 | 레시피 | ✅ | `GET .../manual-items` | |
-| 내 정보 | ✅ | `GET .../me`, `PATCH .../alias`, `GET/POST /tickets/{id}/contract-documents`, `GET .../attendances/mine`(신규) | "최근 근무" 목록에 이제 실제 체크인/아웃 시각·근무 상태를 표시(예전엔 예정 시각만 가능했음 — `KNOWN_GAPS.md` 옛 #2 해소) |
-| 알림 | ✅ | | |
+| 내 정보 | ✅ | `GET .../me`, `PATCH .../alias`, `GET/POST /tickets/{id}/contract-documents`, `GET .../attendances/mine`(신규) | "최근 근무" 목록에 이제 실제 체크인/아웃 시각·근무 상태를 표시(예전엔 예정 시각만 가능했음 — `KNOWN_GAPS.md` 옛 #2 해소) · "개인정보" 버튼으로 `/staff/welcome`에서 실명·휴대전화·생년월일을 고친다 |
+| 개인정보 동의·입력(신규, `/staff/welcome`) | ✅ | `POST .../me/privacy-consent`, `GET/PUT .../me/personal-info`, `GET .../me`(`privacyConsented`) | 초대 코드로 가입한 직원은 먼저 개인정보 수집·이용 동의(필수, 문구 버전 `PRIVACY_CONSENT_VERSION`)와 실명·휴대전화·생년월일 입력을 거친다. 동의 전엔 직원 화면 진입 불가(`ProtectedLayout`이 `session.privacyConsented`로 막음, 테스트 멤버 대리 접근은 제외). 동의·개인정보는 회원 단위라 모든 매장에 공통이고, 서버가 암호화 저장한다. 점주는 직원 상세에서 본다 |
+| 알림 | ✅ | 점주와 같음 | 안 읽은 알림만, 스와이프/× 읽음 처리, 커서 더보기 |
 | 설정 | 🧪(부분) | 로그아웃/탈퇴만 실제 | |
 
 ## 공통 인프라

@@ -5,6 +5,7 @@ import { get, post, patch, del } from './client.js';
 /** type: 'NORMAL' | 'WORK_PROPOSAL' (생략하면 전체). WORK_PROPOSAL 공지는 slots(근무 제안 시간대)를 담고 있다. */
 export const getNotices = (storeId, offset = 0, type) =>
 	get(`/stores/${storeId}/notices`, { offset, type });
+/** 상세 조회 = 그 시점에 읽음 기록. read = {readCheck, readCount, readers[{ticketId, alias, readAt}]}. 목록의 read엔 readers가 없다(null) */
 export const getNotice = (storeId, noticeId) => get(`/stores/${storeId}/notices/${noticeId}`);
 /** 근무 제안 슬롯에 선착순 지원. 응답 {slotId, workId, workAssignmentId, capacity, appliedCount} - 지원 즉시 근무 배정이 확정된다. */
 export const applyWorkProposal = (storeId, noticeId, slotId) =>
@@ -23,7 +24,7 @@ export const updateNoticeComment = (storeId, noticeId, commentId, body) =>
 	patch(`/stores/${storeId}/notices/${noticeId}/comments/${commentId}`, body);
 
 // ── 점주 전용 ────────────────────────────────────────────────
-/** body: {title, content, type?:'NORMAL'|'WORK_PROPOSAL', slots?:[{startTime, endTime, timeType?, capacity}]} */
+/** body: {title, content, type?:'NORMAL'|'WORK_PROPOSAL', slots?:[{startTime, endTime, timeType(필수, 서버는 CLOSE인지만 봐서 칸의 closing으로 저장), capacity}]} */
 export const createNotice = (storeId, body) => post(`/stores/${storeId}/owner/notices`, body);
 export const updateNotice = (storeId, noticeId, body) =>
 	patch(`/stores/${storeId}/owner/notices/${noticeId}`, body);

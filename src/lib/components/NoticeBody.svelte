@@ -11,14 +11,18 @@
 	import { showToast } from '$lib/stores/toast.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { fmt, toHM, rel } from '$lib/utils/date.js';
-	import { TIME_TYPE } from '$lib/utils/labels.js';
 
-	/** 공지 하나를 펼쳤을 때 보이는 본문 영역: 근무 제안 슬롯(선착순 지원)과 댓글/답글.
-	 * @type {{notice: any, canApply?: boolean}} */
-	let { notice, canApply = false } = $props();
+	/** 공지 하나를 펼쳤을 때 보이는 본문 영역: 읽은 사람, 근무 제안 슬롯(선착순 지원)과 댓글/답글.
+	 * 펼치면 상세를 조회하는데, 백엔드가 그 시점에 읽음으로 기록하고 읽은 사람 목록(read.readers)을 준다.
+	 * onRead는 목록 행의 "안 읽음" 표시를 새로고침 없이 끄려고 받은 read를 넘겨준다.
+	 * @type {{notice: any, canApply?: boolean, onRead?: (read: any) => void}} */
+	let { notice, canApply = false, onRead } = $props();
 
 	let slots = $state(/** @type {any[]} */ ([]));
 	let comments = $state(/** @type {any[]} */ ([]));
+	/** 상세를 연 사람 전원(점주·직원, 본인 포함) {ticketId, alias, readAt}, readAt 오름차순 */
+	let readers = $state(/** @type {any[]} */ ([]));
+	let showReaders = $state(false);
 	let loading = $state(true);
 	let applyingSlotId = $state(/** @type {number | null} */ (null));
 
@@ -29,10 +33,12 @@
 
 	const isProposal = $derived(notice.type === 'WORK_PROPOSAL');
 
-	async function loadSlots() {
-		if (!isProposal) return;
+	/** 상세 조회 - 읽음 기록 + 읽은 사람 + (근무 제안이면) 슬롯 */
+	async function loadDetail() {
 		const detail = await getNotice($session.storeId, notice.id);
 		slots = detail.slots ?? [];
+		readers = detail.read?.readers ?? [];
+		if (detail.read) onRead?.(detail.read);
 	}
 	async function loadComments() {
 		comments = (await getNoticeComments($session.storeId, notice.id))?.content ?? [];
@@ -40,7 +46,7 @@
 
 	onMount(async () => {
 		try {
-			await Promise.all([loadSlots(), loadComments()]);
+			await Promise.all([loadDetail(), loadComments()]);
 		} catch (e) {
 			showToast(e?.message || '불러오기에 실패했어요');
 		} finally {
@@ -58,7 +64,7 @@
 				showToast(e?.message || '지원하지 못했어요');
 			} finally {
 				applyingSlotId = null;
-				loadSlots().catch(() => {});
+				loadDetail().catch(() => {});
 			}
 		});
 	}
@@ -109,6 +115,14 @@
 	{#if loading}
 		<div class="tiny muted">불러오는 중…</div>
 	{:else}
+		<div class="tiny muted" style="margin-bottom:10px">
+			<button class="link b" onclick={() => (showReaders = !showReaders)}>읽음 {readers.length}명 {showReaders ? '▴' : '▾'}</button>
+			{#if showReaders}
+				<div style="margin-top:4px">
+					{#each readers as r, i (r.ticketId)}{i ? ', ' : ''}{r.alias}{r.ticketId === $session.ticketId ? ' (나)' : ''} <span class="num">{rel(r.readAt.slice(0, 10))} {toHM(r.readAt)}</span>{:else}아직 없어요{/each}
+				</div>
+			{/if}
+		</div>
 		{#if isProposal}
 			<div class="f" style="margin-bottom:12px">
 				<label>근무 제안 (선착순)</label>
@@ -116,7 +130,7 @@
 					{@const full = sl.appliedCount >= sl.capacity}
 					<div class="row">
 						<div class="main">
-							<div class="t">{fmt(sl.startTime.slice(0, 10))} <span class="num">{toHM(sl.startTime)}–{toHM(sl.endTime)}</span> · {TIME_TYPE[sl.timeType] ?? '보통'}</div>
+							<div class="t">{fmt(sl.startTime.slice(0, 10))} <span class="num">{toHM(sl.startTime)}–{toHM(sl.endTime)}</span>{sl.closing ? ' · 마감' : ''}</div>
 							<div class="s">{sl.appliedCount}/{sl.capacity}명 지원</div>
 						</div>
 						{#if canApply}

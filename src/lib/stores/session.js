@@ -14,13 +14,15 @@ function createSessionStore() {
 		jobRole: /** @type {'OWNER' | 'MANAGER' | 'STAFF' | null} */ (null),
 		// 점주가 테스트 멤버로 대리 접근 중이면 그 멤버의 alias(아니면 null). 이때 ticketId/alias/jobRole은
 		// 테스트 멤버 것(STAFF)이라 직원 화면이 그대로 동작한다 - 점주 본인 값은 exitActing()이 복원한다.
-		acting: /** @type {string | null} */ (null)
+		acting: /** @type {string | null} */ (null),
+		// 개인정보 수집·이용 동의 여부(회원 단위, GET /stores/{id}/me의 privacyConsented). 직원 화면 진입 가드용
+		privacyConsented: false
 	});
 
 	async function loadFromStorage() {
 		const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
 		if (!saved) {
-			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
+			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null, privacyConsented: false });
 			return;
 		}
 		await selectStore(Number(saved));
@@ -48,11 +50,12 @@ function createSessionStore() {
 				ticketId: me.ticketId,
 				alias: me.alias,
 				jobRole: me.jobRole ?? null,
-				acting: getActing() ? me.alias : null
+				acting: getActing() ? me.alias : null,
+				privacyConsented: !!me.privacyConsented
 			});
 		} catch (e) {
 			if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
-			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
+			set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null, privacyConsented: false });
 			throw e;
 		}
 	}
@@ -82,10 +85,15 @@ function createSessionStore() {
 	function clear() {
 		setActing(null);
 		if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
-		set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null });
+		set({ ready: true, storeId: null, storeName: '', ticketId: null, alias: '', jobRole: null, acting: null, privacyConsented: false });
 	}
 
-	return { subscribe, loadFromStorage, selectStore, enterActing, exitActing, clear, update };
+	/** 개인정보 수집·이용에 동의한 직후 가드가 다시 막지 않게 세션에도 반영한다 */
+	function markPrivacyConsented() {
+		update((v) => ({ ...v, privacyConsented: true }));
+	}
+
+	return { subscribe, loadFromStorage, selectStore, enterActing, exitActing, clear, update, markPrivacyConsented };
 }
 
 export const session = createSessionStore();

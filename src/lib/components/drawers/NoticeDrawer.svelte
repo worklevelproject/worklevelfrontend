@@ -5,6 +5,8 @@
 	import { closeDrawer } from '$lib/stores/drawer.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { TIME_TYPE } from '$lib/utils/labels.js';
+	import { onMount } from 'svelte';
+	import { DEFAULT_STORE_HOURS, loadStoreHours, hoursOn, timeTypeFor } from '$lib/utils/storeHours.js';
 	import { todayISO } from '$lib/utils/date.js';
 
 	/** @type {{notice?: {id:number, title:string, content:string}, onDone?: () => void}} */
@@ -19,8 +21,13 @@
 	let err = $state('');
 
 	function newSlot() {
-		return { date: todayISO(), startTime: '09:00', endTime: '18:00', timeType: 'OPEN', capacity: 1 };
+		return { date: todayISO(), startTime: '09:00', endTime: '18:00', capacity: 1 };
 	}
+	// 근무 칸의 시간대도 근무 넣기처럼 운영 시간대(평일/주말)와 비교해 자동으로 정한다
+	let hours = $state(DEFAULT_STORE_HOURS);
+	onMount(async () => (hours = await loadStoreHours($session.storeId)));
+	const slotType = (s) => timeTypeFor(hoursOn(hours, s.date), s.startTime, s.endTime);
+
 	function addSlot() {
 		slots = [...slots, newSlot()];
 	}
@@ -46,7 +53,7 @@
 							? slots.map((s) => ({
 									startTime: `${s.date}T${s.startTime}:00`,
 									endTime: `${s.date}T${s.endTime}:00`,
-									timeType: s.timeType,
+									timeType: slotType(s),
 									capacity: Number(s.capacity) || 1
 								}))
 							: []
@@ -84,9 +91,7 @@
 						<input style="width:110px" bind:value={s.date} aria-label="날짜" />
 						<input style="width:64px" bind:value={s.startTime} aria-label="시작" />
 						<input style="width:64px" bind:value={s.endTime} aria-label="끝" />
-						<select bind:value={s.timeType} aria-label="시간대">
-							{#each ['OPEN', 'CLOSE'] as k (k)}<option value={k}>{TIME_TYPE[k]}</option>{/each}
-						</select>
+						<span class="tiny muted">{TIME_TYPE[slotType(s)]}</span>
 						<input style="width:56px" type="number" min="1" bind:value={s.capacity} aria-label="인원" />
 						<span class="tiny muted">명</span>
 						<button class="btn d sm" onclick={() => removeSlot(i)}>빼기</button>

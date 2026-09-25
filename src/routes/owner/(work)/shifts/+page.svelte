@@ -7,10 +7,9 @@
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, hh, dayKeyOf } from '$lib/utils/date.js';
-	import { TIME_TYPE, holidayNameOf } from '$lib/utils/labels.js';
+	import { shiftLabel, holidayNameOf } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import ShiftDetailDrawer from '$lib/components/drawers/ShiftDetailDrawer.svelte';
-	import ScheduleDraftDrawer from '$lib/components/drawers/ScheduleDraftDrawer.svelte';
 
 	const HOUR_H = 44; // 시간표 한 시간의 높이(px)
 
@@ -119,8 +118,9 @@
 	}
 	function openAdd(iso, startHour) {
 		const defaultStart = startHour == null ? undefined : `${String(startHour).padStart(2, '0')}:00`;
-		openDrawer(AddShiftDrawer, { defaultDate: iso, defaultStart, onDone: load });
+		openDrawer(AddShiftDrawer, { weekMonday: monday, defaultDate: iso, defaultStart, onDone: load });
 	}
+
 	/** 시간표의 빈 칸을 누르면 그 시각으로 근무 넣기가 열린다 */
 	function onColumnClick(e, iso) {
 		if (e.target !== e.currentTarget) return;
@@ -151,9 +151,8 @@
 	</div>
 	<div class="acts">
 		<button class="btn s" onclick={() => weekOffset--}>‹ 지난주</button>
-		<button class="btn s" disabled={weekOffset === 0} onclick={() => (weekOffset = 0)}>이번 주</button>
 		<button class="btn s" onclick={() => weekOffset++}>다음 주 ›</button>
-		<button class="btn o" onclick={() => openDrawer(ScheduleDraftDrawer, { onDone: load })}>다음 주 초안 만들기</button>
+		<button class="btn p" onclick={() => openAdd(ws.some((w) => w.iso === today) ? today : undefined)}>근무 넣기</button>
 	</div>
 </div>
 
@@ -170,7 +169,6 @@
 				{@const hol = holidayOf(w.iso)}
 				<div class="dh {w.iso === today ? 'today' : ''}">
 					<span><b>{w.n}</b> <small>{w.d}{w.iso === today ? ' · 오늘' : ''}</small></span>
-					<button class="plus" aria-label="{w.m}월 {w.n}일 근무 넣기" onclick={() => openAdd(w.iso)}>+</button>
 					{#if hol}<div class="holn">{hol}</div>{/if}
 						{#if defaultsOn(w.iso).length}
 						<div class="dfl" title="기본 근무 요일인 직원 · 진하게 표시된 사람은 이미 근무가 잡혔어요">
@@ -192,7 +190,7 @@
 					{#each layout(w.iso) as it (it.w.workId)}
 						{@const work = it.w}
 						<div
-							class="tb {work.timeType === 'CLOSE' ? 'close' : ''}"
+							class="tb {work.closing ? 'close' : shiftLabel(work) === '오후' ? 'pm' : ''}"
 							role="button"
 							tabindex="0"
 							style="top:{(it.s - range.lo) * HOUR_H}px;height:{(it.e - it.s) * HOUR_H - 2}px;left:calc({(it.lane / it.lanes) * 100}% + 2px);width:calc({100 / it.lanes}% - 4px)"
@@ -200,7 +198,7 @@
 							onkeydown={(e) => e.key === 'Enter' && openDetail(work.workId)}
 						>
 							<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>
-							<div class="nm">{TIME_TYPE[work.timeType] ?? '보통'}</div>
+							<div class="nm">{shiftLabel(work)}{work.seriesId ? ' · 매주' : ''}</div>
 							<div class="rs">{work.workers.map((wr) => wr.alias).join(', ') || '아직 없음'}</div>
 							{#if canRemove(work)}
 								<button class="x" aria-label="근무 빼기" onclick={(e) => removeWork(e, work)}>×</button>
@@ -212,6 +210,6 @@
 		</div>
 	</div>
 	<p class="tiny muted" style="margin-top:16px">
-		빨간 날짜는 법정공휴일이라 그날 근무는 휴일수당 대상이에요. 날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). 날짜 옆 +나 시간표의 빈 칸을 누르면 근무를 넣고, 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
+		빨간 날짜는 법정공휴일이라 그날 근무는 휴일수당 대상이에요. 날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). "근무 넣기"로 요일·시간·직원을 골라 넣고(매주 반복 가능 - 근무를 누르면 이후 반복 근무까지 한꺼번에 고치거나 뺄 수 있어요), 시간표의 빈 칸을 눌러도 그 시각으로 넣을 수 있어요. 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
 	</p>
 {/if}
