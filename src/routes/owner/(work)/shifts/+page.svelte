@@ -1,13 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
 	import { session } from '$lib/stores/session.js';
-	import { getOwnerWeeklySchedule, deleteWork } from '$lib/api/work.js';
+	import { getOwnerWeeklySchedule, deleteWork, getWorkSeriesList, deleteWorkSeries } from '$lib/api/work.js';
 	import { getEmployees } from '$lib/api/store.js';
 	import { openDrawer } from '$lib/stores/drawer.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, hh, dayKeyOf } from '$lib/utils/date.js';
-	import { shiftLabel, holidayNameOf } from '$lib/utils/labels.js';
+	import { shiftLabel, holidayNameOf, DAY_KEYS, DAY_LABEL } from '$lib/utils/labels.js';
 	import AddShiftDrawer from '$lib/components/drawers/AddShiftDrawer.svelte';
 	import ShiftDetailDrawer from '$lib/components/drawers/ShiftDetailDrawer.svelte';
 
@@ -24,9 +24,15 @@
 	const ws = $derived(weekOf(monday));
 	const today = todayISO();
 
+	/** 매주 반복 근무 규칙 목록(근무표 아래에서 보고 끝낼 수 있다) */
+	let seriesList = $state(/** @type {any[]} */ ([]));
+
 	async function load() {
 		loading = true;
 		error = '';
+		getWorkSeriesList($session.storeId)
+			.then((list) => (seriesList = list))
+			.catch(() => (seriesList = [])); // 목록을 못 읽어도 근무표는 그대로 보여준다
 		try {
 			schedule = await getOwnerWeeklySchedule($session.storeId, monday);
 		} catch (e) {
@@ -139,6 +145,21 @@
 			}
 		}, true);
 	}
+	const daysText = (days) => DAY_KEYS.filter((k) => days.includes(k)).map((k) => DAY_LABEL[k]).join('·');
+
+	/** 반복 근무를 오늘부터 끝낸다(오늘 이후 시작 전 근무가 빠지고 더 만들어지지 않는다) */
+	function endSeries(sr) {
+		confirmBox('이 반복 근무를 끝낼까요?', '오늘부터 잡혀 있던 시작 전 근무가 모두 빠지고, 이후로 더 만들어지지 않아요.', '끝내기', async () => {
+			try {
+				await deleteWorkSeries($session.storeId, sr.id);
+				showToast('반복 근무를 끝냈어요');
+				load();
+			} catch (err) {
+				showToast(err?.message || '끝내지 못했어요');
+			}
+		}, true);
+	}
+
 	const canRemove = (work) => new Date(work.startTime) > new Date();
 </script>
 
@@ -210,6 +231,28 @@
 		</div>
 	</div>
 	<p class="tiny muted" style="margin-top:16px">
-		빨간 날짜는 법정공휴일이라 그날 근무는 휴일수당 대상이에요. 날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). "근무 넣기"로 요일·시간·직원을 골라 넣고(매주 반복 가능 - 근무를 누르면 이후 반복 근무까지 한꺼번에 고치거나 뺄 수 있어요), 시간표의 빈 칸을 눌러도 그 시각으로 넣을 수 있어요. 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
+		빨간 날짜는 법정공휴일이라 그날 근무는 휴일수당 대상이에요. 날짜 아래 이름은 그 요일이 기본 근무 요일인 직원이에요(진한 이름은 이미 근무가 잡힌 사람). "근무 넣기"로 요일·시간·직원을 골라 넣고(매주 반복 가능 - 근무를 누르면 반복 근무 전체를 한꺼번에 고치거나 끝낼 수 있어요), 시간표의 빈 칸을 눌러도 그 시각으로 넣을 수 있어요. 근무 칸의 ×로 바로 뺄 수 있어요(시작 전 근무만). 근무를 누르면 참여자를 바꿀 수 있어요.
 	</p>
 {/if}
+
+{#if seriesList.length}
+	<div class="sec" style="margin-top:24px;max-width:820px">
+		<div class="sec-h"><h3>매주 반복 근무 {seriesList.length}</h3></div>
+		<div class="rows">
+			{#each seriesList as sr (sr.id)}
+				<div class="row">
+					<div class="main">
+						<div class="t">{daysText(sr.daysOfWeek)} <span class="num">{sr.startTime.slice(0, 5)}–{sr.endTime.slice(0, 5)}</span>{sr.closing ? ' · 마감' : ''}</div>
+						<div class="s">
+							{sr.participants.map((p) => p.alias).join(', ') || '참여자 없음'} · {sr.startDate}부터{sr.endDate ? ` ${sr.endDate}까지` : ' 계속'}
+							{sr.generatedUntil ? ` · ${sr.generatedUntil}까지 잡혀 있어요` : ''}
+						</div>
+					</div>
+					<button class="btn d sm" onclick={() => endSeries(sr)}>끝내기</button>
+				</div>
+			{/each}
+		</div>
+		<p class="tiny muted">시간이나 참여자를 바꾸려면 근무표에서 그 반복 근무를 눌러 "반복 근무 전체"를 고르세요.</p>
+	</div>
+{/if}
+
