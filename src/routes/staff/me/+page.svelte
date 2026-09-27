@@ -53,7 +53,7 @@
 			<div class="avatar lg">{profile.alias?.slice(1)}</div>
 			<div><div class="eyebrow">{JOB_ROLE[profile.jobRole] || profile.jobRole} · 입사 {profile.workStartDate || '—'} · 기본 근무 {daysLabel(profile.availableDays)} · {$session.storeName}</div><h1>{profile.alias}</h1></div>
 		</div>
-		<div class="acts"><button class="btn o" onclick={() => (editingAlias = !editingAlias)}>표시 이름 바꾸기</button></div>
+		<div class="acts"><a class="btn s" href="/staff/welcome">개인정보</a><button class="btn o" onclick={() => (editingAlias = !editingAlias)}>표시 이름 바꾸기</button></div>
 	</div>
 
 	{#if editingAlias}

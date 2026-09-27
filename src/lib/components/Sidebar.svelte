@@ -50,7 +50,7 @@
 		[
 			'매장',
 			[
-				['/staff/notices', '공지', 'bell'],
+				['/staff/notices', '공지 · 인수인계', 'bell'],
 				['/staff/recipes', '레시피', 'cup'],
 				['/staff/me', '내 정보', 'user']
 			]
@@ -63,14 +63,15 @@
 </script>
 
 <aside class="side">
-	<div class="mark">WORKLEVEL</div>
-	<button class="storebtn" disabled>
+	<!-- 로고는 매장 고르기(시작) 화면으로, 매장 칩은 설정 > 매장 정보로 보낸다 -->
+	<a class="mark" href="/onboarding">WORKLEVEL</a>
+	<a class="storebtn" href={owner ? '/owner/settings?sec=store' : '/staff/settings'}>
 		<span class="ic">{$session.storeName?.slice(0, 2) || '매장'}</span>
 		<span class="n">
 			<b>{$session.storeName || '매장'}</b>
 			<span>{owner ? '점주' : $session.alias}</span>
 		</span>
-	</button>
+	</a>
 	<ViewSwitcher />
 	{#each groups as [g, items] (g)}
 		<div class="grp">{g}</div>
@@ -86,9 +87,12 @@
 				<Icon name="bell" />알림
 				{#if $unreadCount}<span class="n">{$unreadCount}</span>{/if}
 			</a>
-			<a class={isOn(base + '/mypage') ? 'on' : ''} href={base + '/mypage'}>
-				<Icon name="user" />마이페이지
-			</a>
+			<!-- 마이페이지(workPassport)는 직원용이라 점주 화면엔 두지 않는다 -->
+			{#if !owner}
+				<a class={isOn(base + '/mypage') ? 'on' : ''} href={base + '/mypage'}>
+					<Icon name="user" />마이페이지
+				</a>
+			{/if}
 			<a class={page.url.pathname === base + '/settings' ? 'on' : ''} href={base + '/settings'}>
 				<Icon name="gear" />설정
 			</a>

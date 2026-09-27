@@ -4,7 +4,7 @@
 	import { getWorks } from '$lib/api/work.js';
 	import { getHolidays } from '$lib/api/holiday.js';
 	import { mondayOf, addDays, todayISO, weekOf, toHM, dateOf } from '$lib/utils/date.js';
-	import { TIME_TYPE, holidayNameOf } from '$lib/utils/labels.js';
+	import { shiftLabel, holidayNameOf } from '$lib/utils/labels.js';
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 
 	let weekOffset = $state(0);
@@ -57,7 +57,7 @@
 <svelte:head><title>근무표 · WORKLEVEL</title></svelte:head>
 
 <div class="hdr">
-	<div><div class="eyebrow">우리 매장 전체 · 다른 직원의 이름은 API 제약으로 보이지 않아요<span class="mock-badge">API 제약</span></div><h1>근무표</h1></div>
+	<div><div class="eyebrow">우리 매장 전체 · 진한 테두리가 내 근무예요</div><h1>근무표</h1></div>
 	<div class="acts">
 		<button class="btn s" onclick={() => weekOffset--}>‹ 지난주</button>
 		<button class="btn s" disabled={weekOffset === 0} onclick={() => (weekOffset = 0)}>이번 주</button>
@@ -78,8 +78,10 @@
 				{#each worksOf(w.iso) as work (work.id)}
 					<div class="blk" style={work.assigned ? 'outline:1.5px solid var(--carbon)' : ''}>
 						<div class="tm">{toHM(work.startTime)}–{toHM(work.endTime)}</div>
-						<div class="nm">{TIME_TYPE[work.timeType] ?? '보통'} 근무</div>
-						{#if work.assigned}<div class="rs" style="color:var(--blue)">내 근무</div>{/if}
+						<div class="nm">{shiftLabel(work)} 근무</div>
+						<div class="rs">
+							{#each work.workers ?? [] as wr, i (wr.ticketId)}{i ? ', ' : ''}<span style={wr.ticketId === $session.ticketId ? 'color:var(--blue)' : ''}>{wr.alias}</span>{:else}아직 없음{/each}
+						</div>
 					</div>
 				{/each}
 			</div>

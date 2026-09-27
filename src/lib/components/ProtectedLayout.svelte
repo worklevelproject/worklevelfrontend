@@ -45,6 +45,10 @@
 			await goto(counterpartPath(page.url.pathname, actuallyOwner ? 'owner' : 'staff'));
 			return;
 		}
+		// 초대 코드로 가입한 직원은 개인정보 수집·이용 동의를 마쳐야 직원 화면을 쓸 수 있다(점주의 테스트 멤버 대리 접근은 제외)
+		if (!owner && !$session.acting && !$session.privacyConsented && page.url.pathname !== '/staff/welcome') {
+			await goto('/staff/welcome');
+		}
 		checked = true;
 		startPolling();
 		setupPushNotifications();

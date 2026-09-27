@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
-	import { getEmployeeStats, getEmployees } from '$lib/api/store.js';
+	import { getEmployeeStats, getEmployees, getInviteCode } from '$lib/api/store.js';
 	import { DOC_EXPIRY_STATUS, JOB_ROLE, daysLabel, docPillClass } from '$lib/utils/labels.js';
 	import { won } from '$lib/utils/format.js';
 	import { confirmBox } from '$lib/stores/confirm.js';
@@ -12,6 +12,20 @@
 	let list = $state(/** @type {any[]} */ ([]));
 	let sortKey = $state('alias');
 	let loading = $state(true);
+	/** 직원이 시작 화면에서 입력할 매장 초대 코드(버튼을 눌렀을 때만 불러온다) */
+	let inviteCode = $state('');
+
+	async function showInviteCode() {
+		try {
+			inviteCode = inviteCode || (await getInviteCode($session.storeId)).inviteCode;
+			await navigator.clipboard?.writeText(inviteCode).then(
+				() => showToast('초대 코드를 복사했어요'),
+				() => {}
+			);
+		} catch (e) {
+			showToast(e?.message || '초대 코드를 불러오지 못했어요');
+		}
+	}
 
 	async function load() {
 		loading = true;
@@ -51,6 +65,7 @@
 			<button class={activeTab ? 'on' : ''} onclick={() => (activeTab = true)}>일하는 중</button>
 			<button class={!activeTab ? 'on' : ''} onclick={() => (activeTab = false)}>그만둔 직원</button>
 		</div>
+		<button class="btn o" onclick={showInviteCode} title="직원은 시작 화면에서 이 코드로 참여해요">{inviteCode ? `초대 코드 ${inviteCode}` : '초대 코드'}</button>
 	</div>
 </div>
 

@@ -54,14 +54,14 @@
 		<div class="pop" class:show={showNotif}>
 			<div class="ph"><b>알림</b></div>
 			{#each $notifications.slice(0, 6) as n (n.alarmTargetId)}
-				<button class="notif" class:read={n.readCheck} onclick={() => openNotif(n)}>
+				<button class="notif" onclick={() => openNotif(n)}>
 					<span class="dot"></span>
 					<span class="main">
 						<div class="t">{n.title}</div>
 					</span>
 				</button>
 			{:else}
-				<div class="empty">알림이 없어요</div>
+				<div class="empty">새 알림이 없어요</div>
 			{/each}
 		</div>
 	</div>

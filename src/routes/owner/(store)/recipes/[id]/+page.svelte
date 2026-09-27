@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/stores/session.js';
@@ -9,15 +9,21 @@
 	import { confirmBox } from '$lib/stores/confirm.js';
 	import { showToast } from '$lib/stores/toast.js';
 
-	const idParam = page.params.id;
-	const isNew = idParam === 'new';
+	// /new에서 등록하면 같은 라우트(/[id])로 goto하므로 컴포넌트가 재사용된다 - params를 반응형으로 읽어야
+	// 등록 직후 새로고침 없이 보기 화면으로 바뀐다.
+	const idParam = $derived(page.params.id);
+	const isNew = $derived(idParam === 'new');
 
 	let nameKo = $state('');
 	let nameEn = $state('');
 	let precautions = $state('');
 	let ingredients = $state([{ name: '', amount: '' }]);
 	let steps = $state(['']);
-	let loading = $state(!isNew);
+	let loading = $state(false);
+	/** 등록된 레시피는 보기 화면이 기본이고 "수정"을 눌렀을 때만 입력 폼을 보여준다 */
+	let editing = $state(false);
+	/** 서버에 저장된 값(보기 화면 표시 + 수정 취소 시 되돌리기용) */
+	let item = $state(/** @type {any} */ (null));
 	let saving = $state(false);
 	let err = $state('');
 	let updatedAt = $state('');
@@ -28,25 +34,62 @@
 	let thumbnailFile = $state(/** @type {File | null} */ (null));
 	let thumbnailPreviewUrl = $state('');
 
-	onMount(async () => {
-		if (isNew) return;
+	/** 입력 폼을 저장된 값으로 채운다(수정 취소 시에도 씀) */
+	function fillForm() {
+		const c = item.content;
+		nameKo = c.nameKo;
+		nameEn = c.nameEn;
+		precautions = c.precautions;
+		ingredients = c.ingredients?.length ? c.ingredients.map((i) => ({ ...i })) : [{ name: '', amount: '' }];
+		steps = c.steps?.length ? [...c.steps] : [''];
+		updatedAt = item.updatedAt;
+		thumbnailS3FileId = item.thumbnailS3FileId ?? null;
+		clearPickedThumbnail();
+	}
+
+	async function load(id) {
+		loading = true;
+		err = '';
 		try {
-			const item = await getManualItem($session.storeId, Number(idParam));
-			const c = item.content;
-			nameKo = c.nameKo;
-			nameEn = c.nameEn;
-			precautions = c.precautions;
-			ingredients = c.ingredients?.length ? c.ingredients : [{ name: '', amount: '' }];
-			steps = c.steps?.length ? c.steps : [''];
-			updatedAt = item.updatedAt;
-			thumbnailS3FileId = item.thumbnailS3FileId ?? null;
+			item = await getManualItem($session.storeId, id);
+			fillForm();
+		} catch (e) {
+			err = e?.message || '불러오기에 실패했어요';
 		} finally {
 			loading = false;
 		}
+	}
+
+	$effect(() => {
+		const id = idParam;
+		untrack(() => {
+			if (id === 'new') {
+				item = null;
+				nameKo = nameEn = precautions = updatedAt = '';
+				ingredients = [{ name: '', amount: '' }];
+				steps = [''];
+				thumbnailS3FileId = null;
+				clearPickedThumbnail();
+				editing = true;
+			} else {
+				editing = false;
+				load(Number(id));
+			}
+		});
 	});
-	onDestroy(() => {
+
+	function clearPickedThumbnail() {
 		if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
-	});
+		thumbnailFile = null;
+		thumbnailPreviewUrl = '';
+	}
+	onDestroy(clearPickedThumbnail);
+
+	function cancelEdit() {
+		fillForm();
+		err = '';
+		editing = false;
+	}
 
 	function onPickThumbnail(e) {
 		const file = e.target.files?.[0];
@@ -93,6 +136,8 @@
 				const update = () => updateManualItem($session.storeId, Number(idParam), payload);
 				await (newThumbId ? retryAfterUpload(update) : update());
 				showToast('저장했어요');
+				await load(Number(idParam));
+				editing = false;
 			}
 		} catch (e) {
 			err = e?.message || '저장에 실패했어요';
@@ -110,10 +155,51 @@
 	}
 </script>
 
-<svelte:head><title>{isNew ? '레시피 추가' : nameKo} · WORKLEVEL</title></svelte:head>
+<svelte:head><title>{isNew ? '레시피 추가' : item?.content?.nameKo || '레시피'} · WORKLEVEL</title></svelte:head>
 
 {#if loading}
 	<div class="empty">불러오는 중…</div>
+{:else if !isNew && !item}
+	<div class="empty">{err || '레시피를 찾을 수 없어요'}</div>
+{:else if !editing}
+	{@const c = item.content}
+	<div class="hdr">
+		<div>
+			<div class="eyebrow">{c.nameEn ? `${c.nameEn} · ` : ''}수정됨 {item.updatedAt?.slice(0, 10)}</div>
+			<h1>{c.nameKo}</h1>
+		</div>
+		<div class="acts">
+			<a class="btn s" href="/owner/recipes">목록</a>
+			<button class="btn d" onclick={onDelete}>삭제</button>
+			<button class="btn p" onclick={() => (editing = true)}>수정</button>
+		</div>
+	</div>
+	<div class="cols eq">
+		<div>
+			<div class="card" style="height:320px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+				{#if item.thumbnailS3FileId}
+					<div style="width:100%;height:100%"><ProtectedThumb s3FileId={item.thumbnailS3FileId} /></div>
+				{:else}
+					<div style="width:120px;height:135px"><ProtectedThumb s3FileId={null} /></div>
+				{/if}
+			</div>
+			{#if c.precautions && c.precautions !== '-'}<div class="note" style="margin-top:12px"><b style="font-weight:500;color:var(--carbon)">주의</b><br />{c.precautions}</div>{/if}
+		</div>
+		<div>
+			<div class="sec">
+				<div class="sec-h"><h3>재료 · 양</h3></div>
+				<div class="rows">
+					{#each c.ingredients ?? [] as ing, i (i)}
+						<div class="row" style="padding:10px 0"><div class="main">{ing.name} · {ing.amount}</div></div>
+					{/each}
+				</div>
+			</div>
+			<div class="sec">
+				<div class="sec-h"><h3>만드는 순서</h3></div>
+				<ol class="steps">{#each c.steps ?? [] as st, i (i)}<li>{st}</li>{/each}</ol>
+			</div>
+		</div>
+	</div>
 {:else}
 	<div class="hdr">
 		<div>
@@ -121,7 +207,7 @@
 			<h1>{isNew ? '레시피 추가' : nameKo}</h1>
 		</div>
 		<div class="acts">
-			{#if !isNew}<button class="btn d" onclick={onDelete}>삭제</button>{/if}
+			{#if isNew}<a class="btn s" href="/owner/recipes">취소</a>{:else}<button class="btn s" onclick={cancelEdit}>취소</button>{/if}
 			<button class="btn p" disabled={saving} onclick={save}>{isNew ? '등록하기' : '저장하기'}</button>
 		</div>
 	</div>

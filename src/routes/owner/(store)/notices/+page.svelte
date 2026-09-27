@@ -11,6 +11,7 @@
 	import { createPagedList } from '$lib/utils/pagedList.svelte.js';
 	import NoticeDrawer from '$lib/components/drawers/NoticeDrawer.svelte';
 	import NoticeBody from '$lib/components/NoticeBody.svelte';
+	import HandOverList from '$lib/components/HandOverList.svelte';
 
 	let tab = $state('notice');
 	let loading = $state(true);
@@ -60,7 +61,7 @@
 	<div class="acts">
 		<div class="seg lg">
 			<button class={tab === 'notice' ? 'on' : ''} onclick={() => (tab = 'notice')}>공지 {notices.items.length}</button>
-			<button class={tab === 'handover' ? 'on' : ''} onclick={() => (tab = 'handover')}>마감 노트 {handovers.items.length}</button>
+			<button class={tab === 'handover' ? 'on' : ''} onclick={() => (tab = 'handover')}>인수인계 {handovers.items.length}</button>
 		</div>
 		{#if tab === 'notice'}<button class="btn p" onclick={write}>공지 쓰기</button>{/if}
 	</div>
@@ -76,10 +77,10 @@
 			<div class="notice" role="button" tabindex="0" onclick={() => (openId = openId === n.id ? null : n.id)} onkeydown={(e) => e.key === 'Enter' && (openId = openId === n.id ? null : n.id)}>
 				<div class="main">
 					<div class="t">{#if n.type === 'WORK_PROPOSAL'}<span class="pill wait">근무 제안</span> {/if}{n.title}</div>
-					<div class="s">{n.writer.alias} · {rel(n.createdAt.slice(0, 10))} {toHM(n.createdAt)}</div>
+					<div class="s">{n.writer.alias} · {rel(n.createdAt.slice(0, 10))} {toHM(n.createdAt)}{n.read ? ` · 읽음 ${n.read.readCount}명` : ''}</div>
 					{#if openId === n.id}
 						<div class="b">{n.content}</div>
-						<NoticeBody notice={n} />
+						<NoticeBody notice={n} onRead={(r) => (n.read = r)} />
 					{/if}
 				</div>
 				<button class="btn s sm" onclick={(e) => { e.stopPropagation(); edit(n); }}>수정</button>
@@ -92,17 +93,7 @@
 	</div>
 {:else}
 	<div class="card w" style="max-width:820px;padding:4px 20px">
-		{#each handovers.items as h (h.id)}
-			<div class="notice" style="cursor:default">
-				<div class="avatar" style="width:32px;height:32px;font-size:11px">{h.writer.alias.slice(1)}</div>
-				<div class="main">
-					<div class="t">{h.writer.alias} <span class="muted tiny">· {rel(h.createdAt.slice(0, 10))} {toHM(h.createdAt)}</span></div>
-					<div class="b">{h.content}</div>
-				</div>
-			</div>
-		{:else}
-			<div class="empty">아직 없어요</div>
-		{/each}
+		<HandOverList items={handovers.items} />
 		{#if handovers.hasNext}<button class="btn s" style="margin-top:10px" onclick={handovers.loadMore}>더보기</button>{/if}
 	</div>
 {/if}

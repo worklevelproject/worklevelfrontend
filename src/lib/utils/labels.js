@@ -11,7 +11,9 @@ export function daysLabel(days) {
 	if (!days.length) return '없음';
 	return DAY_KEYS.filter((k) => days.includes(k)).map((k) => DAY_LABEL[k]).join('·');
 }
-export const TIME_TYPE = { OPEN: '오픈', CLOSE: '마감', NORMAL: '보통' };
+export const TIME_TYPE = { OPEN: '오픈', AFTERNOON: '오후', CLOSE: '마감', NORMAL: '보통' };
+/** 근무에는 시간대가 저장되지 않고 마감 여부(closing)만 있다 - 마감이 아니면 시작 시각으로 오전/오후만 나눠 보여준다 */
+export const shiftLabel = (work) => (work?.closing ? '마감' : new Date(work?.startTime).getHours() < 12 ? '오전' : '오후');
 export const CONTENT_TYPE = { CHECK: '했어요 버튼', MEMO: '글로 답하기', PHOTO: '사진으로 답하기' };
 export const TASK_STATUS = { PENDING: '진행 중', COMPLETE: '완료', FAIL: '기한 넘김' };
 export const TASK_RECURRENCE_TYPE = {
@@ -69,3 +71,6 @@ export function resignationPillClass(status) {
 
 /** 법정공휴일 이름. 토/일은 백엔드가 이름 없이 '주말'로 내려주므로 공휴일로 세지 않는다(없으면 null) */
 export const holidayNameOf = (x) => (x?.isHoliday && x.holidayName && x.holidayName !== '주말' ? x.holidayName : null);
+
+/** 직원별 공제 방식(ticket.deductionType) */
+export const DEDUCTION_TYPE = { TAX_3_3: '3.3%', SOCIAL_INSURANCE: '4대보험', NONE: '없음' };

@@ -52,6 +52,11 @@
 	function openDay(iso) {
 		openDrawer(SalesDayDrawer, { iso });
 	}
+	/** 날짜를 누르면 고르고, 아직 매출이 없는 날이면 바로 넣기 화면을 연다(따로 "넣기" 버튼을 두지 않는다) */
+	function pickDay(c) {
+		calSel = c.k;
+		if (!c.has && c.k <= T) openDay(c.k);
+	}
 </script>
 
 <svelte:head><title>매출 · WORKLEVEL</title></svelte:head>
@@ -61,7 +66,7 @@
 		<div class="eyebrow">하루 매출 · 직원에게는 보이지 않아요<span class="mock-badge">목업</span></div>
 		<h1>매출</h1>
 	</div>
-	<div class="acts"><button class="btn p" onclick={() => openDay(T)}>오늘 매출 넣기</button></div>
+	<div class="acts"><button class="btn p" onclick={() => openDay(calSel)}>{calSel === T ? '오늘' : `${+calSel.slice(5, 7)}월 ${+calSel.slice(8)}일`} 매출 {hasSel ? '고치기' : '넣기'}</button></div>
 </div>
 
 <div class="tiles">
@@ -80,15 +85,15 @@
 			{#each DOW as d (d)}<div class="dow">{d}</div>{/each}
 			{#each Array(first) as _, i (i)}<button class="empty"></button>{/each}
 			{#each cells as c (c.k)}
-				<button class="{c.lvl} {c.k === T ? 'today' : ''} {c.k === calSel ? 'sel' : ''}" onclick={() => (calSel = c.k)}>
+				<button class="{c.lvl} {c.k === T ? 'today' : ''} {c.k === calSel ? 'sel' : ''}" onclick={() => pickDay(c)}>
 					<small>{c.d}</small><b>{c.has ? man(c.s.total) : c.k > T ? '' : '—'}</b>
 				</button>
 			{/each}
 		</div>
 	</div>
-	<div class="card w">
-		<div class="sec-h"><h3>{calSel}</h3><button class="btn p sm" onclick={() => openDay(calSel)}>{hasSel ? '고치기' : '넣기'}</button></div>
-		{#if hasSel}
+	{#if hasSel}
+		<div class="card w">
+			<div class="sec-h"><h3>{calSel}</h3><button class="link b" onclick={() => openDay(calSel)}>고치기</button></div>
 			<div class="kv" style="margin-top:0">
 				<div><b class="num">{won(sel.total)}</b><span>총 매출</span></div>
 				<div><b class="num">{sel.orders}건</b><span>주문 · 객단가 {sel.orders ? won(sel.total / sel.orders) : '—'}</span></div>
@@ -98,8 +103,8 @@
 					<div><span>{l}</span><i style="width:{sel.total ? Math.round((v / sel.total) * 100) : 0}%"></i><b>{won(v)}</b></div>
 				{/each}
 			</div>
-		{:else}
-			<div class="empty">이날 매출이 아직 없어요</div>
-		{/if}
-	</div>
+		</div>
+	{:else}
+		<p class="tiny muted">날짜를 누르면 그날 매출을 넣을 수 있어요.</p>
+	{/if}
 </div>
